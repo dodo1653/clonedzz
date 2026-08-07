@@ -20,24 +20,41 @@ export function CloneCard({
   analyzing: boolean
 }) {
   return (
-    <div className="card">
-      <h2>Clone a site</h2>
-      <div className="field">
-        <label>source URL</label>
-        <input
-          placeholder="https://example.com"
-          value={url}
-          onChange={(e) => onUrl(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && onAnalyze()}
-          autoFocus
-        />
+    <section className="card launch-card">
+      <div className="launch-kicker"><span /> New replica</div>
+      <div className="launch-heading">
+        <div>
+          <h1>Start with a website.</h1>
+          <p>CloneForge reads its visual language, then turns it into a runnable React project.</p>
+        </div>
+        <div className="launch-mark" aria-hidden="true">↗</div>
       </div>
-      <label className="check">
-        <input type="checkbox" checked={tokenMode} onChange={(e) => onTokenMode(e.target.checked)} />
-        <span>token-site factory — inject CA + token content</span>
-      </label>
+
+      <div className="launch-input">
+        <label>Source URL</label>
+        <div className="url-input-wrap">
+          <span className="url-mark" aria-hidden="true">⌁</span>
+          <input
+            placeholder="https://example.com"
+            value={url}
+            onChange={(e) => onUrl(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && onAnalyze()}
+            autoFocus
+          />
+          <span className="key-hint">↵</span>
+        </div>
+      </div>
+
+      <div className="launch-foot">
+        <label className="check">
+          <input type="checkbox" checked={tokenMode} onChange={(e) => onTokenMode(e.target.checked)} />
+          <span>Token-site factory <em>— inject CA and token content</em></span>
+        </label>
+        <span className="launch-note">Visual recipe · React output</span>
+      </div>
+
       {tokenMode && (
-        <div className="row">
+        <div className="row token-fields">
           <div className="field">
             <label>token name</label>
             <input value={token.name} onChange={(e) => onToken({ ...token, name: e.target.value })} />
@@ -56,15 +73,13 @@ export function CloneCard({
           </div>
         </div>
       )}
-      <button className="primary block" onClick={onAnalyze} disabled={!url.trim() || analyzing}>
+      <button className="primary block launch-action" onClick={onAnalyze} disabled={!url.trim() || analyzing}>
         {analyzing ? (
-          <>
-            <span className="spin" /> analyzing…
-          </>
+          <><span className="spin" /> analyzing…</>
         ) : (
-          'Analyze'
+          <>Analyze site <span aria-hidden="true">→</span></>
         )}
       </button>
-    </div>
+    </section>
   )
 }
