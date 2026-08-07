@@ -244,6 +244,7 @@ export interface GenerateOptions {
   recipe: Recipe
   token?: TokenSiteData | null
   hotlinkMedia?: boolean
+  removeGates?: boolean
 }
 
 export interface GenerateResult {

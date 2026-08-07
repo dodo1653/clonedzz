@@ -21,6 +21,7 @@ import {
   viteConfig,
   viteEnvDts,
 } from './templates.ts'
+import { buildGatekiller, injectGatekiller } from './gatekiller.ts'
 
 export async function generateProject(opts: GenerateOptions): Promise<GenerateResult> {
   const { recipe, token } = opts
@@ -50,6 +51,19 @@ export async function generateProject(opts: GenerateOptions): Promise<GenerateRe
       warnings.push('mirror: served the captured page as a static replica (source had no server HTML)')
     }
     const origin = new URL('/', recipe.sourceUrl).href.replace(/\/$/, '')
+    if (opts.removeGates) {
+      try {
+        const gk = await buildGatekiller(html, origin)
+        if (gk) {
+          html = injectGatekiller(html, gk.script)
+          warnings.push(`gatekiller: bypassed ${gk.detected.length} login/wallet gate(s): ${gk.detected.map((g) => g.id.slice(0, 8)).join(', ')}`)
+        } else {
+          warnings.push('gatekiller: no wallet/login gate patterns detected in the site\'s JS - nothing to bypass')
+        }
+      } catch (e) {
+        warnings.push(`gatekiller: detection failed (${String(e)}) - leaving gates intact`)
+      }
+    }
     await write('index.html', html)
     await write('serve.mjs', staticServeMjs(origin))
     await write('static.json', JSON.stringify({ sourceUrl: recipe.sourceUrl, generatedAt: new Date().toISOString() }, null, 2))

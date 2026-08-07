@@ -40,6 +40,7 @@ export default function App() {
   const [url, setUrl] = useState('')
   const [token, setToken] = useState<TokenSiteData>({ name: '', ticker: '', ca: '', blurb: '' })
   const [tokenMode, setTokenMode] = useState(false)
+  const [removeGates, setRemoveGates] = useState(false)
   const [phase, setPhase] = useState<Phase>('idle')
   const [msg, setMsg] = useState('')
   const [error, setError] = useState('')
@@ -115,6 +116,7 @@ export default function App() {
         name,
         token: tokenMode && token.ca ? token : null,
         install: true,
+        removeGates,
       })
       setGen({ dir: res.dir, files: res.files })
       setPhase('generated')
@@ -346,6 +348,10 @@ export default function App() {
                 <label>project name</label>
                 <input value={recipeName} onChange={(e) => setRecipeName(e.target.value)} />
               </div>
+              <label style={{ fontSize: 11, color: 'var(--muted)' }}>
+                <input type="checkbox" checked={removeGates} onChange={(e) => setRemoveGates(e.target.checked)} style={{ width: 'auto', marginRight: 6 }} />
+                remove login / wallet gates (auto-detect &amp; bypass wallet checks, isHolder-style access denial, login failure)
+              </label>
               <div className="actions">
                 <button className="primary" onClick={() => generate(null)} disabled={phase === 'generating' || phase === 'verifying'}>
                   {phase === 'generating' ? 'generating…' : 'Generate'}

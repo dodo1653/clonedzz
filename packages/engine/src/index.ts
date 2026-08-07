@@ -5,6 +5,7 @@ export { extractCanvasFromJs } from './canvasExtract.ts'
 export { buildRecipe } from './autoMap.ts' 
 export { generateProject } from './generate.ts' 
 export { verifyReplica } from './verify.ts' 
+export { buildGatekiller, detectGateFns, buildGatekillerScript, injectGatekiller } from './gatekiller.ts' 
 
 import { staticAnalysis } from './staticAnalysis.ts' 
 import { renderedAnalysis } from './renderedAnalysis.ts' 

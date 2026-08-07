@@ -38,7 +38,7 @@ async function del<T>(path: string): Promise<T> {
 
 export const api = {
   analyze: (url: string, name?: string) => post<AnalyzeResponse>('/api/analyze', { url, name }),
-  generate: (body: { sessionId?: string; recipe?: Recipe; name: string; token?: TokenSiteData | null; install?: boolean }) =>
+  generate: (body: { sessionId?: string; recipe?: Recipe; name: string; token?: TokenSiteData | null; install?: boolean; removeGates?: boolean }) =>
     post<GenerateResult>('/api/generate', body),
   verify: (sourceUrl: string, replicaDir: string) => post<VerifyReport>('/api/verify', { sourceUrl, replicaDir }),
   preview: (dir: string) => post<PreviewInfo>('/api/preview', { dir }),

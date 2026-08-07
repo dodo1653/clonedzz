@@ -17,13 +17,14 @@ const opt = (flag: string) => {
 const has = (flag: string) => args.includes(flag)
 
 if (!url) {
-  console.error('usage: node cli.ts <url> [--name <name>] [--out <dir>] [--token-name <n> --token-ticker <t> --token-ca <ca>] [--verify]')
+  console.error('usage: node cli.ts <url> [--name <name>] [--out <dir>] [--token-name <n> --token-ticker <t> --token-ca <ca>] [--gates] [--verify]')
   process.exit(1)
 }
 
 const name = opt('--name')
 const out = opt('--out')
 const verify = has('--verify')
+const removeGates = has('--gates')
 
 console.log(`\nCLONEFORGE — analyzing ${url}\n`)
 const recipe = await analyzeUrl(url, name)
@@ -59,8 +60,10 @@ if (out) {
     name: name ?? recipe.name,
     recipe,
     token,
+    removeGates,
   })
   console.log(`Generated ${result.files.length} files in ${result.dir}`)
+  for (const w of result.warnings) console.log(`  note: ${w}`)
 
   if (verify) {
     if (!existsSync(join(result.dir, 'node_modules'))) {

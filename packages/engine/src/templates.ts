@@ -255,9 +255,24 @@ createServer(async (req, res) => {
     } catch {
       // not on disk -> proxy to the original site
     }
-    const upstream = ORIGIN + req.url
+    const upstream = new URL(req.url, ORIGIN).href
+    const headers = {}
+    for (const h of ['user-agent', 'accept', 'accept-language', 'content-type', 'referer', 'origin', 'cookie']) {
+      const v = req.headers[h]
+      if (v) headers[h] = v
+    }
+    let body
+    if (req.method === 'POST') {
+      body = await new Promise((resolve) => {
+        const chunks = []
+        req.on('data', (c) => chunks.push(c))
+        req.on('end', () => resolve(Buffer.concat(chunks)))
+      })
+    }
     const r = await fetch(upstream, {
-      headers: { 'user-agent': req.headers['user-agent'] || '', accept: req.headers.accept || '*/*' },
+      method: req.method,
+      headers,
+      body: body && body.length ? body : undefined,
       redirect: 'follow',
       signal: AbortSignal.timeout(30000),
     })

@@ -49,6 +49,7 @@ app.post('/api/generate', async (req, res) => {
       name: string
       token?: TokenSiteData | null
       install?: boolean
+      removeGates?: boolean
     }
     const recipe = body.recipe ?? (body.sessionId ? readRecipe(body.sessionId) : null)
     if (!recipe) {
@@ -60,6 +61,7 @@ app.post('/api/generate', async (req, res) => {
       name: body.name || recipe.name,
       recipe,
       token: body.token ?? null,
+      removeGates: body.removeGates === true,
     })
     writeFileSync(
       join(result.dir, '.cloneforge.json'),
