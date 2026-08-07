@@ -55,6 +55,12 @@ export default function App() {
   const [pushing, setPushing] = useState(false)
   const [pushResult, setPushResult] = useState<PushResult | null>(null)
   const [toasts, setToasts] = useState<{ id: number; kind: ToastKind; text: string }[]>([])
+  const [lightMode, setLightMode] = useState(() => localStorage.getItem('cloneforge-theme') === 'light')
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('light', lightMode)
+    localStorage.setItem('cloneforge-theme', lightMode ? 'light' : 'dark')
+  }, [lightMode])
 
   const pushToast = useCallback((kind: ToastKind, text: string) => {
     const id = Date.now() + Math.random()
@@ -272,6 +278,20 @@ export default function App() {
     setTokenMode(true)
   }
 
+  const goHome = () => {
+    setUrl('')
+    setTokenMode(false)
+    setRemoveGates(false)
+    setPhase('idle')
+    setRecipe(null)
+    setSessionId('')
+    setRecipeName('')
+    setGen(null)
+    setPreview(null)
+    setVerify(null)
+    setPushResult(null)
+  }
+
   const analyzeRef = useRef(analyze)
   analyzeRef.current = analyze
 
@@ -309,6 +329,9 @@ export default function App() {
         onDeleteSession={deleteSession}
         onLoadTheme={loadTheme}
         onApplyToken={applyToken}
+        lightMode={lightMode}
+        onToggleTheme={() => setLightMode((v) => !v)}
+        onHome={goHome}
       />
 
       <main className="main">

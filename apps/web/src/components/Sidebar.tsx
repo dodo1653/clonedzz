@@ -149,6 +149,9 @@ export function Sidebar({
   onDeleteSession,
   onLoadTheme,
   onApplyToken,
+  lightMode,
+  onToggleTheme,
+  onHome,
 }: {
   sessions: SessionItem[]
   themes: ThemeItem[]
@@ -166,17 +169,24 @@ export function Sidebar({
   onDeleteSession: (id: string) => void
   onLoadTheme: (t: ThemeItem) => void
   onApplyToken: (t: TokenPreset) => void
+  lightMode: boolean
+  onToggleTheme: () => void
+  onHome: () => void
 }) {
   return (
     <aside className="sidebar">
       <div className="brand">
-        <div className="brand-topline">
+        <div className="brand-topline brand-home" onClick={onHome} role="button" tabIndex={0} title="Return home" onKeyDown={(e) => e.key === 'Enter' && onHome()}>
           <div className="brand-line">
             clone<span>forge</span>
           </div>
           <span className="brand-orbit" aria-hidden="true" />
         </div>
         <div className="brand-sub">replicate · runnable Vite+React</div>
+        <button className="theme-toggle" onClick={onToggleTheme} aria-label={`Switch to ${lightMode ? 'dark' : 'light'} theme`}>
+          <span className="theme-spark" aria-hidden="true">{lightMode ? '☾' : '☼'}</span>
+          <span>{lightMode ? 'light room' : 'dark room'}</span>
+        </button>
       </div>
 
       <SideSection
