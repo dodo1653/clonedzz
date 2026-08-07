@@ -1,0 +1,8 @@
+node_modules/
+dist/
+outputs/
+*.tsbuildinfo
+library/sessions/*/
+!library/sessions/.gitkeep
+*.log
+.DS_Store

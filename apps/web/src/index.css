@@ -1,0 +1,142 @@
+:root {
+  --bg: #0b0d12;
+  --panel: #12151d;
+  --panel-2: #171b25;
+  --line: #232a38;
+  --text: #e6e9f0;
+  --muted: #8b94a7;
+  --accent: #6ee7b7;
+  --accent-2: #38bdf8;
+  --danger: #f87171;
+  --ok: #4ade80;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "SF Mono", "Cascadia Code", Consolas, monospace;
+  font-size: 14px;
+}
+
+.app { display: flex; height: 100%; }
+.sidebar {
+  width: 300px; min-width: 300px;
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+  overflow-y: auto;
+  padding: 16px;
+}
+.main { flex: 1; overflow-y: auto; padding: 20px 28px; }
+
+.brand { font-size: 18px; font-weight: 700; letter-spacing: 0.02em; }
+.brand span { color: var(--accent); }
+.brand-sub { color: var(--muted); font-size: 11px; margin-top: 2px; }
+
+h3.side { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 20px 0 8px; }
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 14px;
+}
+.card h2 { margin: 0 0 12px; font-size: 15px; }
+
+.field { margin-bottom: 10px; }
+.field label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+input, textarea {
+  width: 100%;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 13px;
+}
+input:focus, textarea:focus { outline: 1px solid var(--accent-2); }
+
+.row { display: flex; gap: 10px; }
+.row > div { flex: 1; }
+
+button {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+button:hover { border-color: var(--accent-2); }
+button:disabled { opacity: 0.5; cursor: default; }
+button.primary { background: #0f3d2e; border-color: var(--accent); color: var(--accent); }
+button.danger { color: var(--danger); }
+button.block { width: 100%; margin-top: 10px; }
+button.small { padding: 4px 8px; font-size: 11px; }
+
+.status { font-size: 12px; color: var(--muted); margin-top: 8px; min-height: 16px; }
+.error { color: var(--danger); }
+
+.kv { display: grid; grid-template-columns: 130px 1fr; gap: 4px 12px; font-size: 12px; }
+.kv .k { color: var(--muted); }
+
+.comp { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; }
+.comp .t { display: flex; justify-content: space-between; }
+.comp .ty { color: var(--accent-2); font-weight: 600; }
+.comp .hd { color: var(--muted); }
+
+.actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.actions button { flex: 1; min-width: 130px; }
+
+.score { font-size: 40px; font-weight: 700; }
+.score .pct { color: var(--ok); }
+.score .fail { color: var(--danger); }
+
+.verify-item { display: flex; gap: 8px; font-size: 12px; padding: 3px 0; }
+.verify-item .m { flex: 1; }
+.verify-item .pass { color: var(--ok); }
+.verify-item .fail { color: var(--danger); }
+.verify-item .s { color: var(--muted); }
+
+iframe.preview { width: 100%; height: 560px; border: 1px solid var(--line); border-radius: 10px; background: #000; }
+
+.theme-item, .session-item, .output-item, .token-item {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.theme-item:hover, .session-item:hover { border-color: var(--accent-2); }
+.theme-item .nm { font-weight: 600; }
+.theme-item .sub, .session-item .sub, .output-item .sub { color: var(--muted); font-size: 11px; }
+
+.loading {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 40px;
+  text-align: center;
+  color: var(--muted);
+}
+.spin {
+  display: inline-block;
+  width: 14px; height: 14px;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: sp 0.8s linear infinite;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+@keyframes sp { to { transform: rotate(360deg); } }
+
+.empty { color: var(--muted); font-size: 12px; padding: 8px 0; }
+
+ul.notes { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size: 12px; }
