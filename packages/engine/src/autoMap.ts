@@ -7,7 +7,7 @@ import type {
   StaticAnalysis,
   TextBlock,
 } from './types.ts' 
-import { cleanText, slugify } from './util.ts' 
+import { cleanText, slugify, staticEligible } from './util.ts' 
 
 const COMMON_MONO = /mono/i
 const COMMON_DISPLAY = /serif|display|playfair|instrument|space gro|major/i
@@ -105,6 +105,7 @@ export function buildRecipe(static_: StaticAnalysis, rendered: RenderedAnalysis,
     notes,
     bodyHtml: rendered.bodyHtml,
     rawCss: rendered.rawCss,
+    staticMode: staticEligible(rendered.scripts, rendered.bodyHtml),
   }
 }
 

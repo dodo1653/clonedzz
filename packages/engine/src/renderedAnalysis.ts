@@ -172,6 +172,13 @@ export async function renderedAnalysis(url: string, opts: RenderedOptions = {}):
     const reveal = await measureReveal(page, base.blocks)
 
     const bodyHtml = await page.evaluate(async () => {
+      let prev = ''
+      for (let i = 0; i < 10; i++) {
+        await new Promise((r) => setTimeout(r, 600))
+        const cur = document.body.innerHTML
+        if (cur === prev) break
+        prev = cur
+      }
       const d = document.documentElement
       const h = d.scrollHeight
       const step = Math.max(window.innerHeight, 400)
@@ -204,6 +211,10 @@ export async function renderedAnalysis(url: string, opts: RenderedOptions = {}):
     }
     const rawCss = cssParts.join('\n').slice(0, 400000)
 
+    const scripts = await page.evaluate(() =>
+      [...document.querySelectorAll('script')].map((s) => ({ src: s.src || '', type: s.type || '' })).filter((s) => s.src || s.type !== 'application/ld+json'),
+    )
+
     return {
       url,
       viewport,
@@ -225,6 +236,7 @@ export async function renderedAnalysis(url: string, opts: RenderedOptions = {}):
       socials: socialList,
       bodyHtml,
       rawCss,
+      scripts,
     }
   } finally {
     await browser.close()

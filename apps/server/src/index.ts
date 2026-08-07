@@ -65,7 +65,7 @@ app.post('/api/generate', async (req, res) => {
       join(result.dir, '.cloneforge.json'),
       JSON.stringify({ sourceUrl: recipe.sourceUrl, title: recipe.title, name: recipe.name, createdAt: new Date().toISOString() }, null, 2),
     )
-    if (body.install !== false) {
+    if (body.install !== false && !existsSync(join(result.dir, 'static.json'))) {
       await run('npm', ['install', '--no-audit', '--no-fund'], result.dir)
     }
     res.json({ ...result, installStarted: body.install !== false })
@@ -77,6 +77,10 @@ app.post('/api/generate', async (req, res) => {
 app.post('/api/verify', async (req, res) => {
   try {
     const { sourceUrl, replicaDir } = req.body as { sourceUrl: string; replicaDir: string }
+    if (existsSync(join(replicaDir, 'static.json'))) {
+      res.json({ url: sourceUrl, replicaDir, score: null, metrics: [], note: 'static mirror — content is copied verbatim, no metric comparison needed' })
+      return
+    }
     if (!existsSync(join(replicaDir, 'node_modules'))) {
       await run('npm', ['install', '--no-audit', '--no-fund'], replicaDir)
     }
@@ -92,19 +96,27 @@ const previews = new Map<number, ReturnType<typeof spawn>>()
 app.post('/api/preview', async (req, res) => {
   try {
     const { dir } = req.body as { dir: string }
+    if (existsSync(join(dir, 'static.json'))) {
+      const preview = await startStatic(dir)
+      if (!preview.port) throw new Error('static preview server failed to start')
+      previews.set(preview.port, preview.child)
+      res.json({ url: `http://localhost:${preview.port}`, port: preview.port, static: true })
+      return
+    }
     if (!existsSync(join(dir, 'node_modules', 'vite'))) {
       await run('npm', ['install', '--no-audit', '--no-fund'], dir)
     }
-    const port = 5290 + Math.floor(Math.random() * 400)
-    const vite = join(dir, 'node_modules', 'vite', 'bin', 'vite.js')
-    const child = spawn(process.execPath, [vite, '--port', String(port), '--strictPort', '--host', '127.0.0.1'], {
-      cwd: dir,
-      stdio: 'ignore',
-      detached: true,
-    })
-    previews.set(port, child)
-    await waitFor(port)
-    res.json({ url: `http://localhost:${port}`, port })
+    let preview = await startPreview(dir)
+    if (!preview.port) {
+      await run('npm', ['install', '--no-audit', '--no-fund'], dir)
+      preview = await startPreview(dir)
+    }
+    if (!preview.port) {
+      if (preview.child) killTree(preview.child)
+      throw new Error('preview server failed to start, even after reinstalling dependencies')
+    }
+    previews.set(preview.port, preview.child)
+    res.json({ url: `http://localhost:${preview.port}`, port: preview.port })
   } catch (e) {
     res.status(500).json({ error: String(e) })
   }
@@ -277,4 +289,79 @@ async function waitFor(port: number, tries = 150): Promise<void> {
     await new Promise((r) => setTimeout(r, 500))
   }
   throw new Error(`Vite dev server on port ${port} did not become ready`)
+}
+
+function killTree(child: ReturnType<typeof spawn>): void {
+  if (process.platform === 'win32') spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'])
+  else child.kill('SIGTERM')
+}
+
+function startPreview(dir: string): Promise<{ port: number | null; child: ReturnType<typeof spawn> | null }> {
+  return new Promise((resolve) => {
+    const vite = join(dir, 'node_modules', 'vite', 'bin', 'vite.js')
+    if (!existsSync(vite)) {
+      resolve({ port: null, child: null })
+      return
+    }
+    const port = 5290 + Math.floor(Math.random() * 400)
+    const child = spawn(process.execPath, [vite, '--port', String(port), '--strictPort', '--host', '127.0.0.1'], {
+      cwd: dir,
+      stdio: 'ignore',
+      detached: true,
+    })
+    let settled = false
+    const finish = (ok: boolean) => {
+      if (settled) return
+      settled = true
+      if (!ok) killTree(child)
+      resolve({ port: ok ? port : null, child })
+    }
+    child.on('exit', () => finish(false))
+    child.on('error', () => finish(false))
+    const timer = setTimeout(() => finish(false), 45000)
+    waitFor(port)
+      .then(() => {
+        clearTimeout(timer)
+        finish(true)
+      })
+      .catch(() => {})
+  })
+}
+
+function startStatic(dir: string): Promise<{ port: number | null; child: ReturnType<typeof spawn> | null }> {
+  return new Promise((resolve) => {
+    const serve = join(dir, 'serve.mjs')
+    if (!existsSync(serve)) {
+      resolve({ port: null, child: null })
+      return
+    }
+    const port = 5690 + Math.floor(Math.random() * 300)
+    let origin = ''
+    try {
+      origin = (JSON.parse(readFileSync(join(dir, 'static.json'), 'utf8')).sourceUrl as string) ?? ''
+    } catch {
+      // leave empty
+    }
+    const child = spawn(process.execPath, [serve, dir, String(port), origin], {
+      cwd: dir,
+      stdio: 'ignore',
+      detached: true,
+    })
+    let settled = false
+    const finish = (ok: boolean) => {
+      if (settled) return
+      settled = true
+      if (!ok) killTree(child)
+      resolve({ port: ok ? port : null, child })
+    }
+    child.on('exit', () => finish(false))
+    child.on('error', () => finish(false))
+    const timer = setTimeout(() => finish(false), 20000)
+    waitFor(port)
+      .then(() => {
+        clearTimeout(timer)
+        finish(true)
+      })
+      .catch(() => {})
+  })
 }

@@ -15,6 +15,8 @@ import {
   packageJson,
   particleFieldTsx,
   revealTsx,
+  staticIndexHtml,
+  staticServeMjs,
   tsconfig,
   verbatimAppTsx,
   verbatimMainTsx,
@@ -40,6 +42,16 @@ export async function generateProject(opts: GenerateOptions): Promise<GenerateRe
     files.push(rel)
   }
 
+  if (verbatim && recipe.staticMode) {
+    const css = recipe.rawCss ? sanitizeCss(recipe.rawCss) : ''
+    const origin = new URL('/', recipe.sourceUrl).href.replace(/\/$/, '')
+    await write('index.html', staticIndexHtml(recipe, recipe.bodyHtml!, css))
+    await write('serve.mjs', staticServeMjs(origin))
+    await write('static.json', JSON.stringify({ sourceUrl: recipe.sourceUrl, generatedAt: new Date().toISOString() }, null, 2))
+    warnings.push('static: kept the site\'s own scripts/css (mirror) — every tab/animation/effect runs like the original')
+    return { dir, files, warnings }
+  }
+
   if (verbatim) {
     const html = sanitizeBodyHtml(recipe.bodyHtml!, recipe.sourceUrl)
     const css = recipe.rawCss ? sanitizeCss(recipe.rawCss) : ''
@@ -52,7 +64,7 @@ export async function generateProject(opts: GenerateOptions): Promise<GenerateRe
     await write('src/index.css', `@import "tailwindcss";\n\n${cssTokens(recipe, recipe.fonts)}`)
     await write('src/App.tsx', verbatimAppTsx())
     await write('src/source.html.ts', `export const SOURCE_HTML = ${JSON.stringify(html)}\n`)
-    if (css.trim().length > 0) await write('src/source.css', css)
+    if (css.trim().length > 0) await write('src/source.css.ts', `export const SOURCE_CSS = ${JSON.stringify(css)}\n`)
     await write('src/components/Verbatim.tsx', verbatimTsx(hasCanvas))
     if (hasCanvas) await write('src/components/ParticleField.tsx', particleFieldTsx(recipe))
     warnings.push('verbatim: copied source HTML+CSS exactly; content not rebuilt from components')

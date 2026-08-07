@@ -162,6 +162,7 @@ export interface RenderedAnalysis {
   socials: { label: string; href: string }[]
   bodyHtml: string
   rawCss: string
+  scripts: { src: string; type: string }[]
 }
 
 export type ComponentType =
@@ -220,6 +221,7 @@ export interface Recipe {
   notes: string[]
   bodyHtml?: string
   rawCss?: string
+  staticMode?: boolean
 }
 
 export interface TokenSiteData {

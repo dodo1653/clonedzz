@@ -96,6 +96,16 @@ export function cleanText(s: string): string {
   return s.replace(/\s+/g, ' ').trim()
 }
 
+const FRAMEWORK_BUNDLE = /(_next\/static|\/static\/js\/|webpack|__nuxt|nuxt_|parcel|vite\/client|\.bundle\.|assets\/index-|assets\/[a-z0-9_-]{10,}\.js|\.chunk\.)/i
+
+export function staticEligible(scripts: { src: string; type: string }[], html: string): boolean {
+  const real = scripts.filter((s) => s.type !== 'application/ld+json' && (s.src || s.type === 'module' || !s.type))
+  if (!real.length) return false
+  if (real.some((s) => FRAMEWORK_BUNDLE.test(s.src))) return false
+  if (/<div[^>]+id="(__next|gatsby|app-root)"[^>]*>/.test(html)) return false
+  return true
+}
+
 export function isDark(background: string): boolean {
   const m = background.match(/rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/)
   if (m) {

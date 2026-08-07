@@ -108,12 +108,21 @@ createRoot(document.getElementById('root')!).render(
 }
 
 export function verbatimMainTsx(withSourceCss: boolean): string {
-  const src = withSourceCss ? `import './source.css'\n` : ''
+  const src = withSourceCss ? `import { SOURCE_CSS } from './source.css'\n` : ''
+  const inject = withSourceCss
+    ? `
+if (SOURCE_CSS) {
+  const s = document.createElement('style')
+  s.textContent = SOURCE_CSS
+  document.head.appendChild(s)
+}
+`
+    : ''
   return `import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 ${src}import App from './App'
-
+${inject}
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
@@ -187,6 +196,79 @@ ${links ? `${links}\n` : ''}  </head>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
+`
+}
+
+export function staticIndexHtml(recipe: Recipe, html: string, css: string): string {
+  const fontUrls = new Set<string>()
+  for (const f of [recipe.fonts.display, recipe.fonts.body, recipe.fonts.mono]) {
+    const u = googleFontsUrl(f ?? '')
+    if (u) fontUrls.add(u)
+  }
+  const links = [...fontUrls].map((u) => `    <link rel="preconnect" href="https://fonts.googleapis.com" />\n    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />\n    <link rel="stylesheet" href="${u}" />`).join('\n')
+  const theme = recipe.themeColor ?? recipe.background
+  const style = css.trim().length ? `    <style>\n${css}\n    </style>\n` : ''
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="${escapeHtml(theme)}" />
+    <title>${escapeHtml(recipe.title)}</title>
+${links ? `${links}\n` : ''}${style}  </head>
+  <body style="background: ${escapeHtml(recipe.background)}">
+${html}
+  </body>
+</html>
+`
+}
+
+export function staticServeMjs(origin: string): string {
+  const host = new URL(origin).host
+  return `import { createServer } from 'node:http'
+import { createReadStream, statSync } from 'node:fs'
+import { join, normalize, extname } from 'node:path'
+
+const ROOT = process.argv[2]
+const PORT = Number(process.argv[3])
+const ORIGIN = process.argv[4]
+
+const types = {
+  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml',
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp',
+  '.avif': 'image/avif', '.mp4': 'video/mp4', '.webm': 'video/webm', '.woff': 'font/woff', '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf', '.ico': 'image/x-icon', '.txt': 'text/plain; charset=utf-8', '.map': 'application/json',
+}
+
+createServer(async (req, res) => {
+  try {
+    let pathname = decodeURIComponent(new URL(req.url || '/', 'http://localhost').pathname)
+    if (pathname === '/' || pathname === '') pathname = '/index.html'
+    const safe = join(ROOT, normalize(pathname).replace(/^(\\.[/\\\\])+/, ''))
+    try {
+      const st = statSync(safe)
+      if (st.isDirectory()) { res.writeHead(301, { Location: pathname.replace(/\\/?$/, '/') }); res.end(); return }
+      res.writeHead(200, { 'content-type': types[extname(safe).toLowerCase()] || 'application/octet-stream' })
+      createReadStream(safe).pipe(res)
+      return
+    } catch {
+      // not on disk -> proxy to the original site
+    }
+    const upstream = ORIGIN + req.url
+    const r = await fetch(upstream, {
+      headers: { 'user-agent': req.headers['user-agent'] || '', accept: req.headers.accept || '*/*' },
+      redirect: 'follow',
+      signal: AbortSignal.timeout(30000),
+    })
+    const buf = Buffer.from(await r.arrayBuffer())
+    res.writeHead(r.status, { 'content-type': r.headers.get('content-type') || 'application/octet-stream' })
+    res.end(buf)
+  } catch {
+    res.writeHead(502)
+    res.end('proxy error')
+  }
+}).listen(PORT, '127.0.0.1', () => console.log('static replica (${host}) on http://127.0.0.1:' + PORT))
 `
 }
 
