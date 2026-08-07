@@ -4,6 +4,7 @@ import { CloneCard } from './components/CloneCard'
 import { GenerateCard } from './components/GenerateCard'
 import { PreviewCard } from './components/PreviewCard'
 import { PushCard } from './components/PushCard'
+import TitleBar from './components/TitleBar'
 import { RecipeCard } from './components/RecipeCard'
 import { SectionsCard } from './components/SectionsCard'
 import { Sidebar } from './components/Sidebar'
@@ -311,7 +312,8 @@ export default function App() {
   const busy = phase === 'analyzing' || phase === 'generating' || phase === 'verifying'
 
   return (
-    <div className="app">
+    <div className="app has-titlebar">
+      <TitleBar />
       <Sidebar
         sessions={sessions}
         themes={themes}

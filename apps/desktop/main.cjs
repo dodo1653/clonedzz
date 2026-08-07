@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell } = require('electron')
+const { app, BrowserWindow, shell, ipcMain } = require('electron')
 const { spawn, spawnSync } = require('node:child_process')
 const { join } = require('node:path')
 
@@ -59,15 +59,38 @@ if (!app.requestSingleInstanceLock()) {
     }
   })
 
+  ipcMain.on('window:minimize', (e) => {
+    BrowserWindow.fromWebContents(e.sender)?.minimize()
+  })
+  ipcMain.on('window:toggle-maximize', (e) => {
+    const win = BrowserWindow.fromWebContents(e.sender)
+    if (!win) return
+    if (win.isMaximized()) win.unmaximize()
+    else win.maximize()
+  })
+  ipcMain.on('window:close', (e) => {
+    BrowserWindow.fromWebContents(e.sender)?.close()
+  })
+
   async function createWindow() {
     await ensureServer()
     const win = new BrowserWindow({
       width: 1440,
       height: 900,
       title: 'CloneForge',
-      backgroundColor: '#0b0b12',
+      backgroundColor: '#0b0c0f',
       autoHideMenuBar: true,
-      webPreferences: { contextIsolation: true, nodeIntegration: false },
+      frame: false,
+      webPreferences: {
+        contextIsolation: true,
+        nodeIntegration: false,
+        preload: join(__dirname, 'preload.cjs'),
+      },
+    })
+    win.on('maximize', () => win.webContents.send('window:maximized', true))
+    win.on('unmaximize', () => win.webContents.send('window:maximized', false))
+    win.webContents.on('did-finish-load', () => {
+      win.webContents.send('window:maximized', win.isMaximized())
     })
     win.webContents.setWindowOpenHandler(({ url }) => {
       shell.openExternal(url)
