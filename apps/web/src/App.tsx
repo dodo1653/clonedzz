@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { api } from './api'
 import type {
   ComponentSpec,
-  OutputItem,
   PreviewInfo,
+  PushResult,
   Recipe,
   SessionItem,
   ThemeItem,
@@ -36,9 +36,105 @@ function normUrl(u: string): string {
   }
 }
 
+function SideSection({
+  label,
+  count,
+  empty,
+  collapsed,
+  onToggle,
+  children,
+}: {
+  label: string
+  count: number
+  empty: string
+  collapsed?: boolean
+  onToggle: () => void
+  children: ReactNode
+}) {
+  return (
+    <>
+      <div className="side-head" onClick={onToggle}>
+        <span className="side-label">{label}</span>
+        <span className="side-count">{count}</span>
+        <span className={`chev ${collapsed ? 'closed' : ''}`}>▾</span>
+      </div>
+      {!collapsed && (
+        <div className="side-body">
+          {count === 0 && <div className="empty">{empty}</div>}
+          {children}
+        </div>
+      )}
+    </>
+  )
+}
+
+function SessionRow({
+  item,
+  active,
+  editing,
+  editName,
+  onEditName,
+  onSelect,
+  onRename,
+  onSave,
+  onCancel,
+  onDelete,
+}: {
+  item: SessionItem
+  active: boolean
+  editing: boolean
+  editName: string
+  onEditName: (v: string) => void
+  onSelect: () => void
+  onRename: () => void
+  onSave: () => void
+  onCancel: () => void
+  onDelete: () => void
+}) {
+  const name = item.meta.name || item.summary.name
+  if (editing) {
+    return (
+      <div className="item editing" onClick={(e) => e.stopPropagation()}>
+        <input
+          className="rename-input"
+          value={editName}
+          autoFocus
+          onChange={(e) => onEditName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') onSave()
+            if (e.key === 'Escape') onCancel()
+          }}
+          onClick={(e) => e.stopPropagation()}
+        />
+        <div className="item-actions">
+          <button className="icon-btn ok" onClick={onSave} title="save">
+            ✓
+          </button>
+          <button className="icon-btn" onClick={onCancel} title="cancel">
+            ✕
+          </button>
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div className={`item session ${active ? 'active' : ''}`} onClick={onSelect} title={item.meta.sourceUrl}>
+      <div className="nm">{name}</div>
+      <div className="item-actions">
+        <button className="icon-btn" onClick={(e) => { e.stopPropagation(); onRename() }} title="rename">
+          ✎
+        </button>
+        <button className="icon-btn danger" onClick={(e) => { e.stopPropagation(); onDelete() }} title="delete">
+          🗑
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   const [url, setUrl] = useState('')
-  const [token, setToken] = useState<TokenSiteData>({ name: '', ticker: '', ca: '', blurb: '' })
+  const [token, setToken] = useState<TokenSiteData>({ name: '', ticker: '', ca: '', x: '', blurb: '' })
   const [tokenMode, setTokenMode] = useState(false)
   const [removeGates, setRemoveGates] = useState(false)
   const [phase, setPhase] = useState<Phase>('idle')
@@ -53,15 +149,21 @@ export default function App() {
   const [themes, setThemes] = useState<ThemeItem[]>([])
   const [sessions, setSessions] = useState<SessionItem[]>([])
   const [tokens, setTokens] = useState<TokenPreset[]>([])
-  const [outputs, setOutputs] = useState<OutputItem[]>([])
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editName, setEditName] = useState('')
+  const [pushRepo, setPushRepo] = useState('')
+  const [pushToken, setPushToken] = useState('')
+  const [pushBranch, setPushBranch] = useState('main')
+  const [pushing, setPushing] = useState(false)
+  const [pushResult, setPushResult] = useState<PushResult | null>(null)
 
   const refreshLibrary = useCallback(async () => {
     try {
-      const [t, s, tk, o] = await Promise.all([api.themes(), api.sessions(), api.tokens(), api.outputs()])
+      const [t, s, tk] = await Promise.all([api.themes(), api.sessions(), api.tokens()])
       setThemes(t)
       setSessions(s)
       setTokens(tk)
-      setOutputs(o)
     } catch {
       /* ignore */
     }
@@ -70,6 +172,43 @@ export default function App() {
   useEffect(() => {
     refreshLibrary()
   }, [refreshLibrary])
+
+  const toggleSection = (key: string) => setCollapsed((c) => ({ ...c, [key]: !c[key] }))
+
+  const startRename = (s: SessionItem) => {
+    setEditingId(s.id)
+    setEditName(s.meta.name || s.summary.name)
+  }
+
+  const saveRename = async () => {
+    if (!editingId) return
+    const name = editName.trim()
+    if (name) {
+      try {
+        await api.renameSession(editingId, name)
+        refreshLibrary()
+        setRecipeName(name)
+      } catch (e) {
+        setError(String(e))
+      }
+    }
+    setEditingId(null)
+    setEditName('')
+  }
+
+  const deleteSession = async (id: string) => {
+    try {
+      await api.deleteSession(id)
+      if (sessionId === id) {
+        setSessionId('')
+        setRecipe(null)
+        setPhase('idle')
+      }
+      refreshLibrary()
+    } catch (e) {
+      setError(String(e))
+    }
+  }
 
   const analyze = async () => {
     setError('')
@@ -152,6 +291,30 @@ export default function App() {
     }
   }
 
+  const doPush = async (dir: string) => {
+    setError('')
+    setPushResult(null)
+    if (!pushRepo.trim()) {
+      setError('enter a GitHub repo as owner/name (e.g. dodo1653/AFK)')
+      return
+    }
+    setPushing(true)
+    try {
+      const res = await api.push({
+        dir,
+        repo: pushRepo.trim(),
+        branch: pushBranch.trim() || 'main',
+        token: pushToken.trim() || undefined,
+      })
+      setPushResult(res)
+      setMsg('pushed to GitHub ✓')
+    } catch (e) {
+      setError(String(e))
+    } finally {
+      setPushing(false)
+    }
+  }
+
   const saveTheme = async () => {
     if (!recipe) return
     try {
@@ -199,52 +362,63 @@ export default function App() {
       <div className="sidebar">
         <div className="brand">
           clone<span>forge</span>
+          <div className="brand-sub">replicate · runnable Vite+React</div>
         </div>
-        <div className="brand-sub">replicate any website's style → runnable Vite+React</div>
 
-        <h3 className="side">sessions</h3>
-        {sessions.length === 0 && <div className="empty">no analyses yet</div>}
-        {sessions.map((s) => (
-          <div key={s.id} className="session-item" onClick={() => loadSession(s.id)}>
-            <div className="nm">{s.summary.name}</div>
-            <div className="sub">
-              {s.summary.title} · {s.summary.background}
+        <SideSection
+          label="sessions"
+          count={sessions.length}
+          empty="no analyses yet"
+          collapsed={collapsed.sessions}
+          onToggle={() => toggleSection('sessions')}
+        >
+          {sessions.map((s) => (
+            <SessionRow
+              key={s.id}
+              item={s}
+              active={sessionId === s.id}
+              editing={editingId === s.id}
+              editName={editName}
+              onEditName={setEditName}
+              onSelect={() => loadSession(s.id)}
+              onRename={() => startRename(s)}
+              onSave={saveRename}
+              onCancel={() => setEditingId(null)}
+              onDelete={() => deleteSession(s.id)}
+            />
+          ))}
+        </SideSection>
+
+        <SideSection
+          label="themes"
+          count={themes.length}
+          empty="no saved themes"
+          collapsed={collapsed.themes}
+          onToggle={() => toggleSection('themes')}
+        >
+          {themes.map((t) => (
+            <div key={t.name} className="item" onClick={() => loadTheme(t)}>
+              <div className="nm">{t.recipe.name}</div>
             </div>
-            <div className="sub">{s.meta.sourceUrl}</div>
-          </div>
-        ))}
+          ))}
+        </SideSection>
 
-        <h3 className="side">themes</h3>
-        {themes.length === 0 && <div className="empty">no saved themes</div>}
-        {themes.map((t) => (
-          <div key={t.name} className="theme-item" onClick={() => loadTheme(t)}>
-            <div className="nm">{t.recipe.name}</div>
-            <div className="sub">
-              {t.recipe.components.map((c) => c.type).slice(0, 5).join(' · ')}
+        <SideSection
+          label="tokens"
+          count={tokens.length}
+          empty="none saved"
+          collapsed={collapsed.tokens}
+          onToggle={() => toggleSection('tokens')}
+        >
+          {tokens.map((t) => (
+            <div key={t.id} className="item" onClick={() => applyToken(t)}>
+              <div className="nm">
+                {t.data.name} / {t.data.ticker}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </SideSection>
 
-        <h3 className="side">token presets</h3>
-        {tokens.length === 0 && <div className="empty">none saved</div>}
-        {tokens.map((t) => (
-          <div key={t.id} className="token-item" onClick={() => applyToken(t)}>
-            <div className="nm">
-              {t.data.name} / {t.data.ticker}
-            </div>
-            <div className="sub">{t.data.ca.slice(0, 16)}…</div>
-          </div>
-        ))}
-
-        <h3 className="side">outputs</h3>
-        {outputs.length === 0 && <div className="empty">nothing generated yet</div>}
-        {outputs.map((o) => (
-          <div key={o.name} className="output-item" onClick={() => startPreview(o.path)}>
-            <div className="nm">{o.name}</div>
-            <div className="sub">{o.sourceUrl || 'no source url'}</div>
-            <div className="sub">{o.installed ? 'deps installed' : 'deps missing'} · click to preview</div>
-          </div>
-        ))}
       </div>
 
       <div className="main">
@@ -276,6 +450,10 @@ export default function App() {
               <div className="field">
                 <label>CA (Solana)</label>
                 <input value={token.ca} onChange={(e) => setToken({ ...token, ca: e.target.value })} />
+              </div>
+              <div className="field">
+                <label>X community (optional)</label>
+                <input placeholder="https://x.com/…" value={token.x} onChange={(e) => setToken({ ...token, x: e.target.value })} />
               </div>
             </div>
           )}
@@ -386,6 +564,53 @@ export default function App() {
                 </button>
               </div>
               {msg && <div className="status">{msg}</div>}
+            </div>
+
+            <div className="card">
+              <h2>Push to GitHub</h2>
+              <div className="field">
+                <label>repo (owner/name)</label>
+                <input
+                  placeholder="dodo1653/AFK"
+                  value={pushRepo}
+                  onChange={(e) => setPushRepo(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && doPush(gen.dir)}
+                />
+              </div>
+              <div className="row">
+                <div className="field">
+                  <label>branch</label>
+                  <input value={pushBranch} onChange={(e) => setPushBranch(e.target.value)} />
+                </div>
+                <div className="field">
+                  <label>PAT (optional — fallback to git credential manager)</label>
+                  <input type="password" placeholder="github_pat_…" value={pushToken} onChange={(e) => setPushToken(e.target.value)} />
+                </div>
+              </div>
+              <button className="primary block" onClick={() => doPush(gen.dir)} disabled={pushing || phase === 'verifying'}>
+                {pushing ? (
+                  <>
+                    <span className="spin" /> pushing…
+                  </>
+                ) : (
+                  'Push to GitHub'
+                )}
+              </button>
+              {pushResult && (
+                <div className="status ok">
+                  ✓ pushed <b>{pushResult.branch}</b>@{pushResult.commit.slice(0, 7)} to{' '}
+                  <a href={pushResult.commitUrl} target="_blank" rel="noopener noreferrer">
+                    {pushResult.repo}
+                  </a>
+                  {pushResult.notes.length > 0 && (
+                    <div style={{ marginTop: 6, fontSize: 12, color: 'var(--muted)' }}>
+                      {pushResult.notes.map((n, i) => (
+                        <div key={i}>· {n}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {preview && (

@@ -39,6 +39,9 @@ export interface TokenSiteData {
   blurb?: string
   buys?: string[]
   sells?: string[]
+  x?: string
+  telegram?: string
+  community?: string
 }
 
 export interface AnalyzeResponse {
@@ -83,7 +86,7 @@ export interface TokenPreset {
 
 export interface SessionItem {
   id: string
-  meta: { sourceUrl: string; createdAt: string }
+  meta: { sourceUrl: string; createdAt: string; name?: string }
   summary: { name: string; title: string; background: string; fonts: Fonts; components: { type: string; headline?: string }[] }
 }
 
@@ -93,4 +96,14 @@ export interface OutputItem {
   installed: boolean
   path: string
   sourceUrl: string | null
+}
+
+export interface PushResult {
+  ok: boolean
+  repo: string
+  branch: string
+  commit: string
+  url: string
+  commitUrl: string
+  notes: string[]
 }

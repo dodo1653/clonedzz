@@ -1,4 +1,4 @@
-import { join, dirname } from 'node:path'
+import { join, dirname, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { mkdirSync, readdirSync, readFileSync, writeFileSync, rmSync, existsSync } from 'node:fs'
 import { spawn } from 'node:child_process'
@@ -214,6 +214,95 @@ app.get('/api/sessions/:id', (req, res) => {
     res.status(404).json({ error: 'not found' })
   }
 })
+app.patch('/api/sessions/:id', (req, res) => {
+  try {
+    const { name } = req.body as { name?: string }
+    const id = req.params.id
+    const metaFile = join(SESSIONS_DIR, id, 'meta.json')
+    if (!existsSync(metaFile)) throw new Error('not found')
+    const meta = JSON.parse(readFileSync(metaFile, 'utf8'))
+    meta.name = typeof name === 'string' && name.trim() ? name.trim() : undefined
+    writeFileSync(metaFile, JSON.stringify(meta, null, 2))
+    res.json({ ok: true, id, name: meta.name })
+  } catch (e) {
+    res.status(404).json({ error: String(e) })
+  }
+})
+app.delete('/api/sessions/:id', (req, res) => {
+  try {
+    const dir = join(SESSIONS_DIR, req.params.id)
+    if (!existsSync(dir)) throw new Error('not found')
+    rmSync(dir, { recursive: true, force: true })
+    res.json({ ok: true })
+  } catch (e) {
+    res.status(404).json({ error: String(e) })
+  }
+})
+app.post('/api/push', async (req, res) => {
+  try {
+    const { dir, repo, branch = 'main', token, message = 'Deploy from CloneForge' } = req.body as {
+      dir?: string
+      repo?: string
+      branch?: string
+      token?: string
+      message?: string
+    }
+    if (!dir || !repo) throw new Error('dir and repo (owner/name) are required')
+    const target = resolve(OUTPUTS_DIR, dir)
+    if (!target.startsWith(resolve(OUTPUTS_DIR) + sep)) throw new Error('invalid output dir')
+    if (!existsSync(target)) throw new Error(`output dir not found: ${target}`)
+    const m = /^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/.exec(repo.trim())
+    if (!m) throw new Error('repo must be owner/name, e.g. dodo1653/AFK')
+    const clean = `${m[1]}/${m[2]}`
+    if (!/^[A-Za-z0-9_.-]+$/.test(branch)) throw new Error('invalid branch name')
+    const isStatic = existsSync(join(target, 'static.json'))
+    const notes: string[] = []
+
+    if (isStatic) {
+      notes.push('static mirror: baking local assets so the push is self-contained')
+      const baked = await bakeStaticAssets(target)
+      notes.push(baked.length ? `baked ${baked.length} local asset file(s)` : 'no extra assets needed to bake')
+    }
+
+    const gi = join(target, '.gitignore')
+    const ignore = isStatic
+      ? ['node_modules/', 'dist/', 'serve.mjs', 'static.json']
+      : ['node_modules/', 'dist/', '*.log']
+    if (!existsSync(gi)) writeFileSync(gi, ignore.join('\n') + '\n')
+
+    await runOut('git', ['init', '-b', branch], target)
+    await runOut('git', ['config', 'user.name', 'CloneForge'], target)
+    await runOut('git', ['config', 'user.email', 'cloneforge@users.noreply.github.com'], target)
+    await runOut('git', ['add', '-A'], target)
+    const dirty = (await runOut('git', ['status', '--porcelain'], target)).trim()
+    if (dirty) await runOut('git', ['commit', '-m', message], target)
+    else notes.push('no file changes to commit')
+
+    await runOut('git', ['remote', 'remove', 'origin'], target).catch(() => {})
+    await runOut('git', ['remote', 'add', 'origin', `https://github.com/${clean}.git`], target)
+
+    if (token) {
+      await runOut('git', ['remote', 'set-url', 'origin', `https://x-access-token:${token}@github.com/${clean}.git`], target)
+      await runOut('git', ['push', '-u', 'origin', branch], target)
+      await runOut('git', ['remote', 'set-url', 'origin', `https://github.com/${clean}.git`], target)
+    } else {
+      await runOut('git', ['push', '-u', 'origin', branch], target)
+    }
+    const sha = (await runOut('git', ['rev-parse', 'HEAD'], target)).trim()
+    res.json({
+      ok: true,
+      repo: clean,
+      branch,
+      commit: sha,
+      url: `https://github.com/${clean}`,
+      commitUrl: `https://github.com/${clean}/commit/${sha}`,
+      notes,
+    })
+  } catch (e) {
+    res.status(400).json({ error: String(e) })
+  }
+})
+
 app.get('/api/outputs', (_req, res) => {
   const items = readdirSync(OUTPUTS_DIR, { withFileTypes: true })
     .filter((e) => e.isDirectory() && existsSync(join(OUTPUTS_DIR, e.name, 'package.json')))
@@ -270,6 +359,112 @@ function listJson(dir: string): string[] {
 
 function slug(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'item'
+}
+
+function runOut(cmd: string, args: string[], cwd: string): Promise<string> {
+  return new Promise((resolvePromise, reject) => {
+    let stdout = ''
+    let stderr = ''
+    const child = spawn(cmd, args, {
+      cwd,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: false,
+    })
+    child.stdout?.on('data', (d) => (stdout += d))
+    child.stderr?.on('data', (d) => (stderr += d))
+    child.on('exit', (code) => {
+      if (code === 0) resolvePromise(stdout)
+      else reject(new Error((stderr.trim() || stdout.trim()) || `${cmd} exited ${code}`))
+    })
+    child.on('error', reject)
+  })
+}
+
+async function bakeStaticAssets(dir: string): Promise<string[]> {
+  const baked: string[] = []
+  const { port, child } = await startStatic(dir)
+  if (!port) return baked
+  const base = `http://127.0.0.1:${port}`
+  let originHost = ''
+  try {
+    originHost = new URL((JSON.parse(readFileSync(join(dir, 'static.json'), 'utf8')).sourceUrl as string) || '', base).host
+  } catch {
+    // keep empty
+  }
+  const seen = new Set<string>()
+  const queue = ['/index.html']
+  try {
+    while (queue.length) {
+      const path = queue.shift()!
+      if (seen.has(path)) continue
+      seen.add(path)
+      const cleanPath = path.split('?')[0]
+      let buf: Buffer
+      try {
+        const r = await fetch(base + path, { signal: AbortSignal.timeout(60000) })
+        if (!r.ok) continue
+        buf = Buffer.from(await r.arrayBuffer())
+      } catch {
+        continue
+      }
+      const local = join(dir, cleanPath.replace(/^\//, ''))
+      mkdirSync(dirname(local), { recursive: true })
+      writeFileSync(local, buf)
+      baked.push(cleanPath)
+      const ext = cleanPath.split('.').pop()?.toLowerCase() || ''
+      if (['html', 'js', 'mjs', 'css'].includes(ext)) {
+        for (const ref of extractAssetRefs(buf.toString('utf8'))) {
+          const resolved = resolveRef(ref, cleanPath, originHost)
+          if (resolved && !seen.has(resolved)) queue.push(resolved)
+        }
+      }
+    }
+  } finally {
+    if (child) killTree(child)
+  }
+  return baked
+}
+
+function extractAssetRefs(text: string): string[] {
+  const out: string[] = []
+  const attr = /(?:src|href|poster|data-src)\s*=\s*["']([^"']+)["']/gi
+  let m: RegExpExecArray | null
+  while ((m = attr.exec(text))) out.push(m[1])
+  const srcset = /srcset\s*=\s*["']([^"']+)["']/gi
+  while ((m = srcset.exec(text))) {
+    for (const part of m[1].split(',')) {
+      const p = part.trim().split(/\s+/)[0]
+      if (p) out.push(p)
+    }
+  }
+  const url = /url\(\s*["']?([^"')]+)["']?\s*\)/gi
+  while ((m = url.exec(text))) out.push(m[1])
+  const strings = /["'](\/?[A-Za-z0-9_./-]+\.(?:mp4|webm|mp3|wav|ogg|jpg|jpeg|png|gif|webp|svg|avif|woff2?|ttf|eot|glb|gltf|json))["']/gi
+  while ((m = strings.exec(text))) out.push(m[1])
+  return out
+}
+
+const ASSET_EXT = /\.(?:mp4|webm|mp3|wav|ogg|jpg|jpeg|png|gif|webp|svg|avif|woff2?|ttf|eot|glb|gltf|json|js|mjs|css)$/i
+
+function resolveRef(ref: string, basePath: string, originHost: string): string | null {
+  const v = ref.trim()
+  if (!v || v.startsWith('data:') || v.startsWith('#') || v.startsWith('//') || v.startsWith('blob:')) return null
+  let path: string
+  if (/^https?:\/\//i.test(v)) {
+    try {
+      if (new URL(v).host !== originHost) return null
+    } catch {
+      return null
+    }
+    path = new URL(v).pathname
+  } else if (v.startsWith('/')) {
+    path = v.split('?')[0]
+  } else {
+    const base = basePath.split('/').slice(0, -1).join('/')
+    path = (base ? base + '/' : '/') + v.split('?')[0]
+  }
+  if (!ASSET_EXT.test(path) || /[\s,;]/.test(path)) return null
+  return path
 }
 
 function run(cmd: string, args: string[], cwd: string): Promise<void> {

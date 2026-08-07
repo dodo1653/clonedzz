@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, writeFile, rm, readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import type { ComponentSpec, GenerateOptions, GenerateResult, Recipe, TokenSiteData } from './types.ts'
 import { slugify, isDark } from './util.ts'
@@ -39,7 +39,10 @@ export async function generateProject(opts: GenerateOptions): Promise<GenerateRe
     files.push(rel)
   }
 
-  if (!token && (!!recipe.pageHtml || (!!recipe.bodyHtml && recipe.bodyHtml.length > 200))) {
+  if (!!recipe.pageHtml || (!!recipe.bodyHtml && recipe.bodyHtml.length > 200)) {
+    for (const stale of ['package.json', 'vite.config.ts', 'tsconfig.json', 'index.html', 'src']) {
+      await rm(join(dir, stale), { force: true, recursive: true })
+    }
     const raw = recipe.pageHtml || ''
     let html = ''
     if (raw.length > 200) {
@@ -67,11 +70,22 @@ export async function generateProject(opts: GenerateOptions): Promise<GenerateRe
     await write('index.html', html)
     await write('serve.mjs', staticServeMjs(origin))
     await write('static.json', JSON.stringify({ sourceUrl: recipe.sourceUrl, generatedAt: new Date().toISOString() }, null, 2))
+    if (token) {
+      const baked = await bakeTokenAssets(dir, origin)
+      const patched = await patchTokenFiles(dir, baked, recipe, token)
+      warnings.push(
+        `token factory: mirrored the live site and swapped in your token — ${patched} file(s) patched for CA/ticker/X${baked.length ? ` (${baked.length} assets baked locally)` : ''}`,
+      )
+    }
     return { dir, files, warnings }
   }
 
   const hasNav = !!recipe.nav?.present
   const reveal = recipe.reveal?.scrollReveal ?? false
+
+  for (const stale of ['static.json', 'serve.mjs']) {
+    await rm(join(dir, stale), { force: true })
+  }
 
   const content = buildContent(recipe, token)
   const sectionsTsx = buildSectionsTsx(recipe, reveal)
@@ -613,4 +627,280 @@ export default function Home() {
   )
 }
 `
+}
+
+const TOKEN_ASSET_EXT = /\.(?:mp4|webm|mp3|wav|ogg|jpg|jpeg|png|gif|webp|svg|avif|woff2?|ttf|eot|glb|gltf|json|js|mjs|css|txt)$/i
+
+async function bakeTokenAssets(dir: string, origin: string): Promise<string[]> {
+  const baked: string[] = []
+  const seen = new Set<string>()
+  const queue: string[] = []
+  const originHost = new URL(origin).host
+  const localIndex = join(dir, 'index.html')
+  let indexHtml: string | null = null
+  try {
+    indexHtml = await readFile(localIndex, 'utf8')
+  } catch {
+    // fall back to fetching from origin
+  }
+  if (indexHtml === null) {
+    try {
+      const r = await fetch(new URL('/index.html', origin).href, { signal: AbortSignal.timeout(60000) })
+      if (r.ok) {
+        indexHtml = await r.text()
+        await mkdir(dir, { recursive: true })
+        await writeFile(localIndex, indexHtml)
+      }
+    } catch {
+      // ignore
+    }
+  }
+  if (indexHtml !== null) {
+    baked.push('/index.html')
+    for (const ref of extractAssetRefs(indexHtml)) {
+      const resolved = resolveRef(ref, '/index.html', originHost)
+      if (resolved && !seen.has(resolved)) queue.push(resolved)
+    }
+  }
+  while (queue.length) {
+    const path = queue.shift()!
+    if (seen.has(path)) continue
+    seen.add(path)
+    const clean = path.split('?')[0]
+    let buf: Buffer
+    try {
+      const r = await fetch(new URL(path, origin).href, { signal: AbortSignal.timeout(60000) })
+      if (!r.ok) continue
+      buf = Buffer.from(await r.arrayBuffer())
+    } catch {
+      continue
+    }
+    const local = join(dir, clean.replace(/^\//, ''))
+    await mkdir(dirname(local), { recursive: true })
+    await writeFile(local, buf)
+    baked.push(clean)
+    const ext = clean.split('.').pop()?.toLowerCase() || ''
+    if (['html', 'js', 'mjs', 'css'].includes(ext)) {
+      for (const ref of extractAssetRefs(buf.toString('utf8'))) {
+        const resolved = resolveRef(ref, clean, originHost)
+        if (resolved && !seen.has(resolved)) queue.push(resolved)
+      }
+    }
+  }
+  return baked
+}
+
+function extractAssetRefs(text: string): string[] {
+  const out: string[] = []
+  const attr = /(?:src|href|poster|data-src)\s*=\s*["']([^"']+)["']/gi
+  let m: RegExpExecArray | null
+  while ((m = attr.exec(text))) out.push(m[1])
+  const srcset = /srcset\s*=\s*["']([^"']+)["']/gi
+  while ((m = srcset.exec(text))) {
+    for (const part of m[1].split(',')) {
+      const p = part.trim().split(/\s+/)[0]
+      if (p) out.push(p)
+    }
+  }
+  const url = /url\(\s*["']?([^"')]+)["']?\s*\)/gi
+  while ((m = url.exec(text))) out.push(m[1])
+  const strings = /["'](\/?[A-Za-z0-9_./-]+\.(?:mp4|webm|mp3|wav|ogg|jpg|jpeg|png|gif|webp|svg|avif|woff2?|ttf|eot|glb|gltf|json))["']/gi
+  while ((m = strings.exec(text))) out.push(m[1])
+  return out
+}
+
+function resolveRef(ref: string, basePath: string, originHost: string): string | null {
+  const v = ref.trim()
+  if (!v || v.startsWith('data:') || v.startsWith('#') || v.startsWith('//') || v.startsWith('blob:')) return null
+  let path: string
+  if (/^https?:\/\//i.test(v)) {
+    try {
+      if (new URL(v).host !== originHost) return null
+    } catch {
+      return null
+    }
+    path = new URL(v).pathname
+  } else if (v.startsWith('/')) {
+    path = v.split('?')[0]
+  } else {
+    const base = basePath.split('/').slice(0, -1).join('/')
+    path = (base ? base + '/' : '/') + v.split('?')[0]
+  }
+  if (!TOKEN_ASSET_EXT.test(path) || /[\s,;]/.test(path)) return null
+  return path
+}
+
+async function patchTokenFiles(dir: string, baked: string[], recipe: Recipe, token: TokenSiteData): Promise<number> {
+  const textFiles = baked.filter((p) => /\.(html|js|mjs|css|json|txt)$/i.test(p))
+  const all = await joinTextFiles(dir, textFiles)
+  const htmlCorpus = extractHtmlCorpus(all)
+  const quotedCorpus = extractQuotedCorpus(all)
+  const scanCorpus = quotedCorpus + '\n' + htmlCorpus
+
+  const oldCA = recipe.contractAddresses[0] || detectCA(all) || null
+  const oldX =
+    (recipe.socials.find((s) => /x\.com|twitter\.com/i.test(s.href))?.href) ||
+    (all.match(/https?:\/\/(?:x\.com|twitter\.com)\/[A-Za-z0-9_/]+/) || [])[0] ||
+    null
+  const oldTicker = detectTicker(scanCorpus, recipe)
+  const oldName = detectName(scanCorpus, recipe)
+
+  let changed = 0
+  for (const p of textFiles) {
+    const path = join(dir, p.replace(/^\//, ''))
+    let text: string
+    try {
+      text = await readFile(path, 'utf8')
+    } catch {
+      continue
+    }
+    const isHtml = /\.html$/i.test(p)
+    let out = text
+    if (oldCA && token.ca) out = out.split(oldCA).join(token.ca)
+    if (oldX && token.x) out = out.split(oldX).join(token.x)
+    if (oldTicker && token.ticker) out = replaceTicker(out, oldTicker, token.ticker, isHtml)
+    if (oldName && token.name) out = replaceNameSafe(out, oldName, token.name, isHtml)
+    if (out !== text) {
+      await writeFile(path, out)
+      changed++
+    }
+  }
+  return changed
+}
+
+function extractQuotedCorpus(all: string): string {
+  const parts: string[] = []
+  const re = /["']([^"'\n]{2,})["']/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(all))) parts.push(m[1])
+  return parts.join('\n')
+}
+
+function detectCA(all: string): string | null {
+  const evm = all.match(/\b0x[a-fA-F0-9]{40}\b/)
+  if (evm) return evm[0]
+  const re = /["']([1-9A-HJ-NP-Za-km-z]{32,44})["']/g
+  const candidates: { value: string; before: string }[] = []
+  let m: RegExpExecArray | null
+  while ((m = re.exec(all))) {
+    const value = m[1]
+    if (!/[A-Z]/.test(value)) continue
+    candidates.push({ value, before: all.slice(Math.max(0, m.index - 90), m.index) })
+  }
+  if (!candidates.length) return null
+  const byContext = candidates.find(
+    (c) => /pump$/.test(c.value) || /(?:ca|contract|address|mint|token)\s*[:=]?\s*$/i.test(c.before),
+  )
+  if (byContext) return byContext.value
+  candidates.sort((a, b) => b.value.length - a.value.length)
+  return candidates[0].value
+}
+
+function detectName(corpus: string, recipe: Recipe): string | null {
+  const name = (recipe.name || '').trim()
+  if (!name) return null
+  const re = new RegExp(`(?:^|[^A-Za-z0-9_])${escapeRegExp(name)}(?:[^A-Za-z0-9_]|$)`, 'i')
+  return re.test(corpus) ? name : null
+}
+
+async function joinTextFiles(dir: string, textFiles: string[]): Promise<string> {
+  let all = ''
+  for (const p of textFiles) {
+    try {
+      all += '\n' + (await readFile(join(dir, p.replace(/^\//, '')), 'utf8'))
+    } catch {
+      // skip unreadable
+    }
+  }
+  return all
+}
+
+function extractHtmlCorpus(all: string): string {
+  const htmlIdx = all.search(/<!doctype html|<html[\s>]/i)
+  const htmlEnd = all.search(/<\/html[\s>]/i)
+  const html = htmlIdx >= 0 ? all.slice(htmlIdx, htmlEnd >= 0 ? htmlEnd + 7 : undefined) : all.slice(0, htmlEnd >= 0 ? htmlEnd + 7 : undefined)
+  const stripped = html.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ')
+  const parts: string[] = []
+  for (const m of stripped.match(/[^<>]*/g) || []) {
+    if (m.trim()) parts.push(m)
+  }
+  for (const m of html.match(/\s(?:content|title|alt|aria-label|placeholder|data-[a-z-]+)\s*=\s*"([^"]+)"/gi) || []) {
+    const v = m.replace(/^[^=]*=\s*"/, '').replace(/"$/, '')
+    if (v) parts.push(v)
+  }
+  return parts.join('\n')
+}
+
+function detectTicker(corpus: string, recipe: Recipe): string | null {
+  const reserved = new Set([
+    'typeof', 'instanceof', 'of', 'in', 'new', 'return', 'this', 'true', 'false', 'null', 'undefined',
+    'function', 'var', 'let', 'const', 'if', 'else', 'for', 'while', 'do', 'switch', 'case', 'break',
+    'continue', 'default', 'try', 'catch', 'finally', 'throw', 'class', 'extends', 'super', 'yield',
+    'await', 'async', 'import', 'export', 'from', 'as', 'delete', 'void', 'debugger', 'static', 'get', 'set',
+  ])
+  const counts = new Map<string, number>()
+  const re = /\$([A-Za-z][A-Za-z0-9_]{1,12})/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(corpus))) {
+    const t = m[1].toLowerCase()
+    if (reserved.has(t)) continue
+    counts.set(t, (counts.get(t) || 0) + 1)
+  }
+  const nameLower = recipe.name.toLowerCase()
+  let best: string | null = null
+  let bestScore = 0
+  for (const [t, c] of counts) {
+    const score = c + (nameLower === t ? 10 : nameLower.includes(t) ? 5 : 0)
+    if (score > bestScore) {
+      best = t
+      bestScore = score
+    }
+  }
+  if (best) return best
+  const caTicker = recipe.contractAddresses[0] ? nameLower.split(/\s+/)[0].toLowerCase() : null
+  if (caTicker && caTicker.length >= 2 && caTicker.length <= 14 && new RegExp(`\\b\\$?${escapeRegExp(caTicker)}\\b`, 'i').test(corpus)) {
+    return caTicker
+  }
+  return null
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function replaceWord(s: string, oldWord: string, newWord: string): string {
+  return s.replace(new RegExp(`\\b${escapeRegExp(oldWord)}\\b`, 'gi'), (w) => {
+    if (w === w.toUpperCase()) return newWord.toUpperCase()
+    if (w[0] === w[0].toUpperCase()) return newWord[0].toUpperCase() + newWord.slice(1)
+    return newWord
+  })
+}
+
+function replaceTicker(text: string, oldTicker: string, newTicker: string, isHtml: boolean): string {
+  const ot = oldTicker.toLowerCase()
+  const nt = newTicker
+  let out = text.replace(new RegExp(`\\$${escapeRegExp(ot)}(?![A-Za-z0-9_])`, 'gi'), `$${nt}`)
+  out = out.replace(new RegExp(`\\$${escapeRegExp(ot).toUpperCase()}(?![A-Za-z0-9_])`, 'gi'), () => `$${nt.toUpperCase()}`)
+  if (!isHtml) return out
+  const safeAttrs = ['content', 'title', 'alt', 'aria-label', 'placeholder', 'data-title']
+  const attrRe = new RegExp(`(\\b(?:${safeAttrs.join('|')})\\s*=\\s*["'])([^"']*)(["'])`, 'gi')
+  out = out.replace(attrRe, (_m, pre: string, val: string, post: string) => pre + replaceWord(val, ot, nt) + post)
+  const textRe = new RegExp(`(>)([^<]*\\b${escapeRegExp(ot)}\\b[^<]*)(<)`, 'gi')
+  out = out.replace(textRe, (_m, pre: string, val: string, post: string) => pre + replaceWord(val, ot, nt) + post)
+  return out
+}
+
+function replaceNameSafe(text: string, oldName: string, newName: string, isHtml: boolean): string {
+  const on = oldName
+  const nn = newName
+  if (isHtml) {
+    const safeAttrs = ['content', 'title', 'alt', 'aria-label', 'placeholder', 'data-title']
+    const attrRe = new RegExp(`(\\b(?:${safeAttrs.join('|')})\\s*=\\s*["'])([^"']*)(["'])`, 'gi')
+    let out = text.replace(attrRe, (_m, pre: string, val: string, post: string) => pre + replaceWord(val, on, nn) + post)
+    const textRe = new RegExp(`(>)([^<]*\\b${escapeRegExp(on)}\\b[^<]*)(<)`, 'gi')
+    out = out.replace(textRe, (_m, pre: string, val: string, post: string) => pre + replaceWord(val, on, nn) + post)
+    return out
+  }
+  const quotedRe = new RegExp(`([^=.(\\[{?]|^)(["'])${escapeRegExp(on)}(["'])`, 'gi')
+  return text.replace(quotedRe, (_m, pre: string, q: string, q2: string) => pre + q + nn + q2)
 }
