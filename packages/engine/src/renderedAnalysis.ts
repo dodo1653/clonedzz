@@ -24,7 +24,8 @@ export async function renderedAnalysis(url: string, opts: RenderedOptions = {}):
   const browser = await chromium.launch({ headless: HEADLESS })
   try {
     const page = await browser.newPage({ viewport: { width, height } })
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 })
+    const resp = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 })
+    const pageHtml = resp ? await resp.text() : ''
     await page.waitForTimeout(400)
 
     const base = await page.evaluate(() => {
@@ -237,6 +238,7 @@ export async function renderedAnalysis(url: string, opts: RenderedOptions = {}):
       bodyHtml,
       rawCss,
       scripts,
+      pageHtml,
     }
   } finally {
     await browser.close()

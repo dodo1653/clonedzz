@@ -163,6 +163,7 @@ export interface RenderedAnalysis {
   bodyHtml: string
   rawCss: string
   scripts: { src: string; type: string }[]
+  pageHtml: string
 }
 
 export type ComponentType =
@@ -222,6 +223,7 @@ export interface Recipe {
   bodyHtml?: string
   rawCss?: string
   staticMode?: boolean
+  pageHtml?: string
 }
 
 export interface TokenSiteData {

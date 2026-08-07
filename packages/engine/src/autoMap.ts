@@ -106,6 +106,7 @@ export function buildRecipe(static_: StaticAnalysis, rendered: RenderedAnalysis,
     bodyHtml: rendered.bodyHtml,
     rawCss: rendered.rawCss,
     staticMode: staticEligible(rendered.scripts, rendered.bodyHtml),
+    pageHtml: rendered.pageHtml,
   }
 }
 
