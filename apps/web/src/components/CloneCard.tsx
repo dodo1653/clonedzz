@@ -9,6 +9,7 @@ export function CloneCard({
   onTokenMode,
   onAnalyze,
   analyzing,
+  hasRecipe,
 }: {
   url: string
   onUrl: (v: string) => void
@@ -18,14 +19,15 @@ export function CloneCard({
   onTokenMode: (v: boolean) => void
   onAnalyze: () => void
   analyzing: boolean
+  hasRecipe: boolean
 }) {
   return (
-    <section className="card launch-card">
-      <div className="launch-kicker"><span /> New replica</div>
+    <section className={`card launch-card reveal ${hasRecipe ? 'has-recipe' : ''}`}>
+      <div className="launch-kicker"><span /> {hasRecipe ? 'Source controls' : 'New replica'}</div>
       <div className="launch-heading">
         <div>
-          <h1>Start with a website.</h1>
-          <p>CloneForge reads its visual language, then turns it into a runnable React project.</p>
+          <h1>{hasRecipe ? 'Refine the source.' : 'Start with a website.'}</h1>
+          <p>{hasRecipe ? 'Replace the URL to begin a new analysis, or continue through the recipe below.' : 'CloneForge reads its visual language, then turns it into a runnable React project.'}</p>
         </div>
         <div className="launch-mark" aria-hidden="true">↗</div>
       </div>

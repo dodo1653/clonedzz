@@ -18,7 +18,7 @@ export function GenerateCard({
   gen: { dir: string; files: string[] } | null
 }) {
   return (
-    <div className="card">
+    <div className="card generate-card reveal">
       <h2>Generate replica</h2>
       <div className="field">
         <label>project name</label>

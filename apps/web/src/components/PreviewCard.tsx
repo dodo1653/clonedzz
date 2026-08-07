@@ -19,7 +19,7 @@ export function PreviewCard({
   const [frameKey, setFrameKey] = useState(0)
 
   return (
-    <div className="card">
+    <div className="card preview-card reveal">
       <div className="card-head">
         <h2>Preview &amp; verify</h2>
         <span className="pill mono">{dir.split(/[\\/]/).pop()}</span>

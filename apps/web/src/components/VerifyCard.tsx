@@ -4,7 +4,7 @@ export function VerifyCard({ verify }: { verify: VerifyReport }) {
   const passed = verify.metrics.filter((m) => m.pass).length
   const pct = verify.metrics.length ? Math.round((passed / verify.metrics.length) * 100) : 0
   return (
-    <div className="card">
+    <div className="card verify-card reveal">
       <div className="card-head">
         <h2>Fidelity report</h2>
         <span className="pill mono">src → replica</span>

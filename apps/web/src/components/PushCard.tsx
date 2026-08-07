@@ -22,7 +22,7 @@ export function PushCard({
   result: PushResult | null
 }) {
   return (
-    <div className="card">
+    <div className="card push-card reveal">
       <h2>Deploy to GitHub</h2>
       <div className="field">
         <label>repo (owner/name)</label>

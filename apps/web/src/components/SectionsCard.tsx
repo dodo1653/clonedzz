@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { ComponentSpec } from '../types'
 
 export const TYPE_COLORS: Record<string, string> = {
@@ -49,8 +50,11 @@ function SectionCard({ c }: { c: ComponentSpec }) {
 }
 
 export function SectionsCard({ components }: { components: ComponentSpec[] }) {
+  const [expanded, setExpanded] = useState(false)
+  const visible = expanded ? components : components.slice(0, 6)
+  const remaining = components.length - visible.length
   return (
-    <div className="card">
+    <div className="card sections-card reveal">
       <div className="card-head">
         <h2>Sections</h2>
         <span className="pill">{components.length}</span>
@@ -59,10 +63,15 @@ export function SectionsCard({ components }: { components: ComponentSpec[] }) {
         <div className="empty">no sections detected</div>
       ) : (
         <div className="secs">
-          {components.map((c) => (
+          {visible.map((c) => (
             <SectionCard key={c.index} c={c} />
           ))}
         </div>
+      )}
+      {components.length > 6 && (
+        <button className="section-toggle" onClick={() => setExpanded((v) => !v)}>
+          {expanded ? 'Show less' : `Show ${remaining} more sections`} <span aria-hidden="true">{expanded ? '↑' : '↓'}</span>
+        </button>
       )}
     </div>
   )

@@ -78,6 +78,15 @@ export default function App() {
     refreshLibrary()
   }, [refreshLibrary])
 
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => entries.forEach((entry) => entry.isIntersecting && entry.target.classList.add('is-visible')),
+      { threshold: 0.08 },
+    )
+    document.querySelectorAll('.reveal:not(.is-visible)').forEach((el) => observer.observe(el))
+    return () => observer.disconnect()
+  }, [recipe, gen, preview, verify, phase])
+
   const toggleSection = (key: string) => setCollapsed((c) => ({ ...c, [key]: !c[key] }))
 
   const startRename = (s: SessionItem) => {
@@ -317,6 +326,7 @@ export default function App() {
           onTokenMode={setTokenMode}
           onAnalyze={analyze}
           analyzing={phase === 'analyzing'}
+          hasRecipe={Boolean(recipe)}
         />
 
         {phase === 'analyzing' && (
