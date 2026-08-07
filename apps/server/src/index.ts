@@ -100,7 +100,7 @@ app.post('/api/preview', async (req, res) => {
     const { dir } = req.body as { dir: string }
     if (existsSync(join(dir, 'static.json'))) {
       const preview = await startStatic(dir)
-      if (!preview.port) throw new Error('static preview server failed to start')
+      if (!preview.port || !preview.child) throw new Error('static preview server failed to start')
       previews.set(preview.port, preview.child)
       res.json({ url: `http://localhost:${preview.port}`, port: preview.port, static: true })
       return
@@ -113,7 +113,7 @@ app.post('/api/preview', async (req, res) => {
       await run('npm', ['install', '--no-audit', '--no-fund'], dir)
       preview = await startPreview(dir)
     }
-    if (!preview.port) {
+    if (!preview.port || !preview.child) {
       if (preview.child) killTree(preview.child)
       throw new Error('preview server failed to start, even after reinstalling dependencies')
     }
