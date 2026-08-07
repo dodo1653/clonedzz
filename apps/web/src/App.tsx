@@ -7,7 +7,6 @@ import { PushCard } from './components/PushCard'
 import { RecipeCard } from './components/RecipeCard'
 import { SectionsCard } from './components/SectionsCard'
 import { Sidebar } from './components/Sidebar'
-import { Steps } from './components/Steps'
 import { Toasts, type ToastKind } from './components/Toasts'
 import { VerifyCard } from './components/VerifyCard'
 import type {
@@ -289,8 +288,6 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  const step = pushResult ? 5 : !gen ? (recipe ? 2 : 1) : preview || verify ? 4 : 3
-  const busyStep = phase === 'analyzing' ? 1 : phase === 'generating' ? 3 : phase === 'verifying' ? 4 : null
   const busy = phase === 'analyzing' || phase === 'generating' || phase === 'verifying'
 
   return (
@@ -315,8 +312,6 @@ export default function App() {
       />
 
       <main className="main">
-        <Steps current={step} busy={busyStep} />
-
         <CloneCard
           url={url}
           onUrl={setUrl}
