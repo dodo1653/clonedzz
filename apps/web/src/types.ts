@@ -4,32 +4,40 @@ export interface Fonts {
   mono?: string
 }
 
+export interface NavLink {
+  label?: string
+  href?: string
+}
+
 export interface ComponentSpec {
   type: string
   index: number
   headline?: string
   body?: string[]
-  sub?: string
-  stats?: { value: string; label: string }[]
-  items?: { title?: string; text: string }[]
-  caption?: string
-  speakers?: { name?: string; role?: string; text: string }[]
-  links?: string[]
-  video?: string
-  image?: string
-  src?: string
+  media?: string[]
+  items?: { title?: string; body?: string }[]
+  links?: NavLink[]
+  bg?: string
+  align?: string
+  textColor?: string
+  delay?: number
 }
 
 export interface Recipe {
   name: string
   title: string
   background: string
-  accent: string
-  themeColor: string
+  accent?: string
+  themeColor?: string | null
   fonts: Fonts
   sourceUrl: string
   components: ComponentSpec[]
   notes: string[]
+  tokens?: Record<string, string>
+  favicon?: string | null
+  nav?: { position?: string; top?: string; transparent?: boolean; links?: NavLink[] } | null
+  images?: string[]
+  socials?: { label: string; href: string }[]
 }
 
 export interface TokenSiteData {
