@@ -336,7 +336,7 @@ export default function App() {
         )}
 
         {recipe && (
-          <>
+          <section className="workflow-stack reveal">
             <RecipeCard recipe={recipe} sessionId={sessionId} />
             <SectionsCard components={recipe.components} />
             <GenerateCard
@@ -349,7 +349,7 @@ export default function App() {
               generating={phase === 'generating'}
               gen={gen}
             />
-          </>
+          </section>
         )}
 
         {gen && (

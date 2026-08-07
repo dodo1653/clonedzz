@@ -170,8 +170,11 @@ export function Sidebar({
   return (
     <aside className="sidebar">
       <div className="brand">
-        <div className="brand-line">
-          clone<span>forge</span>
+        <div className="brand-topline">
+          <div className="brand-line">
+            clone<span>forge</span>
+          </div>
+          <span className="brand-orbit" aria-hidden="true" />
         </div>
         <div className="brand-sub">replicate · runnable Vite+React</div>
       </div>
