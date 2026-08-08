@@ -2,8 +2,8 @@
   "name": "@clonedzz/desktop",
   "private": true,
   "version": "1.0.0",
-  "description": "CloneDzz — replicate any website into a runnable React project",
-  "author": "CloneDzz",
+  "description": "clonedzz — replicate any website into a runnable React project",
+  "author": "clonedzz",
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",
@@ -13,7 +13,7 @@
   },
   "build": {
     "appId": "com.clonedzz.desktop",
-    "productName": "CloneDzz",
+    "productName": "clonedzz",
     "compression": "maximum",
     "electronLanguages": [
       "en-US"
@@ -67,7 +67,7 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "shortcutName": "CloneDzz"
+      "shortcutName": "clonedzz"
     }
   },
   "devDependencies": {

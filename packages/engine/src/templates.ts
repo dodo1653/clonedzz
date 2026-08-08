@@ -924,3 +924,37 @@ ${logo ? `      ${logo}\n` : ''}      <div className="hidden items-center gap-1 
 }
 `
 }
+
+// Blocky fixed bottom token bar (README-TOKENBAR.md pattern), parameterized by
+// the token-factory data. Injected into mirrored/static replicas when the
+// analysis found no contract address on the source site.
+export function tokenBarHtml(token: TokenSiteData): string {
+  const name = escapeHtml(token.name ?? '')
+  const ticker = token.ticker ? escapeHtml(token.ticker.startsWith('$') ? token.ticker : '$' + token.ticker) : ''
+  const ca = escapeHtml(token.ca)
+  const x = token.x ? escapeHtml(token.x) : ''
+  const buy = `https://pump.fun/coin/${token.ca}`
+  return (
+    `<style>
+.tokenbar{position:fixed;left:0;right:0;bottom:0;z-index:100000;display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:#fff;color:#000;border-top:4px solid #000;padding:10px 16px;font-family:'Courier New',ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;box-shadow:0 -6px 0 rgba(0,0,0,.18)}
+.tokenbar .tok-name{font-size:18px;font-weight:700;letter-spacing:.5px}
+.tokenbar .tok-tick{font-size:15px;font-weight:700;border:2px solid #000;padding:2px 8px}
+.tokenbar .tok-ca{font-family:inherit;font-size:13px;background:#000;color:#fff;border:none;padding:6px 10px;cursor:pointer}
+.tokenbar .tok-ca:hover{background:#333}
+.tokenbar .tok-link{font-size:13px;font-weight:700;color:#000;text-decoration:none;border:2px solid #000;padding:5px 10px}
+.tokenbar .tok-link:hover{background:#000;color:#fff}
+.tokenbar .tok-buy{font-size:14px;font-weight:700;background:#000;color:#fff;text-decoration:none;padding:6px 14px}
+.tokenbar .tok-buy:hover{background:#e02424}
+</style>
+<div class="tokenbar">` +
+      (name ? `<span class="tok-name">${name}</span>` : '') +
+      (ticker ? `<span class="tok-tick">${ticker}</span>` : '') +
+      `<button class="tok-ca" onclick="tokenbarCopy()">${ca}</button>` +
+      (x ? `<a class="tok-link" href="${x}" target="_blank" rel="noopener noreferrer">X</a>` : '') +
+      `<a class="tok-buy" href="${buy}" target="_blank" rel="noopener noreferrer">BUY</a>` +
+      `</div>
+<script>
+function tokenbarCopy(){var ca=${JSON.stringify(token.ca)};var b=document.querySelector('.tok-ca');var t=b.textContent;if(navigator.clipboard){navigator.clipboard.writeText(ca)}b.textContent='COPIED \u2713';setTimeout(function(){b.textContent=t},1200)}
+</script>`
+  )
+}

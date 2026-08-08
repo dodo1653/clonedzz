@@ -1,4 +1,4 @@
-// Builds the release bundle for the CloneDzz Windows desktop app:
+// Builds the release bundle for the clonedzz Windows desktop app:
 //   1. compile the server (tsc) 2. stage server-deps (express/cors/playwright + engine)  3. copy browsers
 //   4. build web dist  5. generate icon.ico  6. run electron-builder (NSIS + portable)
 // Usage: node apps/desktop/build-release.cjs [--dir]   (--dir = unpacked only, faster smoke test)

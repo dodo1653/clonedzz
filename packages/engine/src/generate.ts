@@ -17,6 +17,7 @@ import {
   revealTsx,
   staticIndexHtml,
   staticServeMjs,
+  tokenBarHtml,
   tsconfig,
   viteConfig,
   viteEnvDts,
@@ -67,6 +68,10 @@ export async function generateProject(opts: GenerateOptions): Promise<GenerateRe
         warnings.push(`gatekiller: detection failed (${String(e)}) - leaving gates intact`)
       }
     }
+    if (token && !recipe.contractAddresses.length) {
+      html = injectTokenBar(html, token)
+      warnings.push('token factory: analysis found no contract address — added a fixed bottom token bar to the replica')
+    }
     await write('index.html', html)
     await write('serve.mjs', staticServeMjs(origin))
     await write('static.json', JSON.stringify({ sourceUrl: recipe.sourceUrl, generatedAt: new Date().toISOString() }, null, 2))
@@ -106,6 +111,13 @@ export async function generateProject(opts: GenerateOptions): Promise<GenerateRe
   await write('src/pages/Home.tsx', buildHomeTsx(recipe, hasNav, hasCanvas))
 
   return { dir, files, warnings }
+}
+
+function injectTokenBar(html: string, token: TokenSiteData): string {
+  const bar = tokenBarHtml(token)
+  const idx = html.toLowerCase().lastIndexOf('</body>')
+  if (idx === -1) return html + bar
+  return html.slice(0, idx) + bar + html.slice(idx)
 }
 
 function sanitizeBodyHtml(html: string, baseUrl: string): string {
@@ -257,6 +269,7 @@ function buildContent(recipe: Recipe, token: TokenSiteData | null | undefined): 
     `  video: ${jsString(video ?? '')},`,
     `  images: ${jsStringList(images)},`,
     `  ca: ${jsString(ca ?? '')},`,
+    `  hadCa: ${(recipe.contractAddresses.length > 0).toString()},`,
     `  socials: [${socials.map((s) => `{ label: ${jsString(s.label)}, href: ${jsString(s.href)} }`).join(', ')}],`,
     `  navLinks: [${(recipe.nav?.links ?? []).map((l) => `{ text: ${jsString(l.text)}, href: ${jsString(l.href)} }`).join(', ')}],`,
     `  token: ${tokenObj ? JSON.stringify(tokenObj, null, 2).replace(/"([a-zA-Z]+)":/g, '$1:') : 'null'},`,
@@ -520,6 +533,41 @@ function TokenBar() {
   )
 }
 
+function FixedTokenBar() {
+  if (!SITE.token || SITE.hadCa) return null
+  const [copied, setCopied] = useState(false)
+  const tk = SITE.token
+  const ticker = tk.ticker ? (tk.ticker.startsWith('$') ? tk.ticker : '$' + tk.ticker) : ''
+  const copy = () => {
+    navigator.clipboard.writeText(SITE.ca)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+  return (
+    <>
+      <style>{'body{padding-bottom:72px}'}</style>
+      <div
+        className="fixed inset-x-0 bottom-0 z-50 px-5 py-3"
+        style={{ background: 'rgba(6,9,14,.92)', backdropFilter: 'blur(12px)', borderTop: '1px solid rgba(255,255,255,.1)' }}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            {tk.name ? <span className="display text-lg text-white">{tk.name}</span> : null}
+            {ticker ? <span className="mono-label mb-0 !text-[11px]">{ticker}</span> : null}
+          </div>
+          <div className="flex min-w-0 items-center gap-3">
+            <button type="button" onClick={copy} className="max-w-[36ch] truncate font-mono text-xs text-white/80" title={SITE.ca}>
+              {copied ? 'copied ✓' : SITE.ca}
+            </button>
+            {tk.x ? <a href={tk.x} target="_blank" rel="noopener noreferrer" className="btn-glass liquid-glass-strong pill">X</a> : null}
+            <a href={\`https://pump.fun/coin/\${SITE.ca}\`} target="_blank" rel="noopener noreferrer" className="btn-white">BUY</a>
+          </div>
+        </div>
+      </div>
+    </>
+  )
+}
+
 function Footer({ d }: { d: SectionData }) {
   const copy = () => {
     if (SITE.ca) navigator.clipboard.writeText(SITE.ca)
@@ -548,7 +596,7 @@ function Footer({ d }: { d: SectionData }) {
             </div>
           </div>
           <p className="mt-8 text-center font-body text-sm font-light text-white/50">
-            {d.bodies[0] || 'Made with CloneDzz. Not financial advice.'}
+            {d.bodies[0] || 'Made with clonedzz. Not financial advice.'}
           </p>
         </Reveal>
       </div>
@@ -610,6 +658,7 @@ export default function Sections() {
         )
       })}
       {SITE.images.length ? <Gallery /> : null}
+      <FixedTokenBar />
     </>
   )
 }

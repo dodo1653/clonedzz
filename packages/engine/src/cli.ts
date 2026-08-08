@@ -26,7 +26,7 @@ const out = opt('--out')
 const verify = has('--verify')
 const removeGates = has('--gates')
 
-console.log(`\nCLONEDZZ — analyzing ${url}\n`)
+console.log(`\nclonedzz — analyzing ${url}\n`)
 const recipe = await analyzeUrl(url, name)
 
 console.log(`NAME:        ${recipe.name}`)

@@ -105,7 +105,7 @@ if (!app.requestSingleInstanceLock()) {
     const win = new BrowserWindow({
       width: 1440,
       height: 900,
-      title: 'CloneDzz',
+      title: 'clonedzz',
       icon: join(__dirname, 'build', 'icon-light.png'),
       backgroundColor: '#0b0c0f',
       autoHideMenuBar: true,

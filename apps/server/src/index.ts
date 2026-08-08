@@ -241,7 +241,7 @@ app.delete('/api/sessions/:id', (req, res) => {
 })
 app.post('/api/push', async (req, res) => {
   try {
-    const { dir, repo, branch = 'main', token, message = 'Deploy from CloneDzz' } = req.body as {
+    const { dir, repo, branch = 'main', token, message = 'Deploy from clonedzz' } = req.body as {
       dir?: string
       repo?: string
       branch?: string
@@ -272,7 +272,7 @@ app.post('/api/push', async (req, res) => {
     if (!existsSync(gi)) writeFileSync(gi, ignore.join('\n') + '\n')
 
     await runOut('git', ['init', '-b', branch], target)
-    await runOut('git', ['config', 'user.name', 'CloneDzz'], target)
+    await runOut('git', ['config', 'user.name', 'clonedzz'], target)
     await runOut('git', ['config', 'user.email', 'clonedzz@users.noreply.github.com'], target)
     await runOut('git', ['add', '-A'], target)
     const dirty = (await runOut('git', ['status', '--porcelain'], target)).trim()

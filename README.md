@@ -1,4 +1,4 @@
-# CloneDzz
+# clonedzz
 
 Replicate a website's visual style by URL and get a **runnable Vite + React replica** in one command — automatically. Built as a two-stage pipeline: a Playwright-based analysis engine that extracts a structured *recipe* from a live site, and a generator that scaffolds a complete frontend project from that recipe. A web dashboard wraps it all with a token-site factory, a theme library, and a fidelity verifier.
 
@@ -83,8 +83,8 @@ The build script: compiles the server (tsc, no type-check) + engine, stages runt
 Artifacts land in `apps/desktop/release/`:
 
 ```
-CloneDzz Setup <ver>.exe   NSIS installer (per-user, optional desktop shortcut, changable dir)
-CloneDzz <ver>.exe         portable self-extracting exe
+clonedzz Setup <ver>.exe  NSIS installer (per-user, optional desktop shortcut, changable dir)
+clonedzz <ver>.exe        portable self-extracting exe
 ```
 
 ### How the packaged app runs
