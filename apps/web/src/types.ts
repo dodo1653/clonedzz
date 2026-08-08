@@ -1,3 +1,11 @@
+export type Theme = 'dark' | 'light' | 'dim'
+
+export const THEME_ORDER: Theme[] = ['dark', 'light', 'dim']
+
+export function nextTheme(t: Theme): Theme {
+  return THEME_ORDER[(THEME_ORDER.indexOf(t) + 1) % THEME_ORDER.length]
+}
+
 export interface Fonts {
   display: string
   body: string

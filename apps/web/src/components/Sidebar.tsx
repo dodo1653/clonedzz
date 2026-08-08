@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
-import type { SessionItem, ThemeItem, TokenPreset } from '../types'
+import type { SessionItem, Theme, ThemeItem, TokenPreset } from '../types'
+import { nextTheme } from '../types'
 
 function hostOf(u: string): string {
   try {
@@ -149,7 +150,7 @@ export function Sidebar({
   onDeleteSession,
   onLoadTheme,
   onApplyToken,
-  lightMode,
+  theme,
   onToggleTheme,
   onHome,
 }: {
@@ -169,7 +170,7 @@ export function Sidebar({
   onDeleteSession: (id: string) => void
   onLoadTheme: (t: ThemeItem) => void
   onApplyToken: (t: TokenPreset) => void
-  lightMode: boolean
+  theme: Theme
   onToggleTheme: () => void
   onHome: () => void
 }) {
@@ -183,9 +184,14 @@ export function Sidebar({
           <span className="brand-orbit" aria-hidden="true" />
         </div>
         <div className="brand-sub">replicate · runnable Vite+React</div>
-        <button className="theme-toggle" onClick={onToggleTheme} aria-label={`Switch to ${lightMode ? 'dark' : 'light'} theme`}>
-          <span className="theme-spark" aria-hidden="true">{lightMode ? '☾' : '☼'}</span>
-          <span>{lightMode ? 'light room' : 'dark room'}</span>
+        <button
+          className="theme-toggle"
+          onClick={onToggleTheme}
+          aria-label={`Switch to ${nextTheme(theme)} theme`}
+          title={`switch to ${nextTheme(theme)} theme`}
+        >
+          <span className="theme-spark" aria-hidden="true">{theme === 'dark' ? '☾' : theme === 'light' ? '☼' : '◐'}</span>
+          <span>{theme === 'dark' ? 'dark room' : theme === 'light' ? 'light room' : 'dim light'}</span>
         </button>
       </div>
 

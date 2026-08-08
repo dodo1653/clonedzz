@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { api } from './api'
 import { CloneCard } from './components/CloneCard'
 import { GenerateCard } from './components/GenerateCard'
@@ -17,11 +17,13 @@ import type {
   PushResult,
   Recipe,
   SessionItem,
+  Theme,
   ThemeItem,
   TokenPreset,
   TokenSiteData,
   VerifyReport,
 } from './types'
+import { nextTheme } from './types'
 
 type Phase = 'idle' | 'analyzing' | 'ready' | 'generating' | 'generated' | 'verifying' | 'verified' | 'error'
 
@@ -63,12 +65,62 @@ export default function App() {
   const [pushing, setPushing] = useState(false)
   const [pushResult, setPushResult] = useState<PushResult | null>(null)
   const [toasts, setToasts] = useState<{ id: number; kind: ToastKind; text: string }[]>([])
-  const [lightMode, setLightMode] = useState(() => localStorage.getItem('clonedzz-theme') === 'light')
+  const [theme, setTheme] = useState<Theme>(() => {
+    const saved = localStorage.getItem('clonedzz-theme')
+    return saved === 'light' || saved === 'dim' ? saved : 'dark'
+  })
+  const firstThemeRun = useRef(true)
 
-  useEffect(() => {
-    document.documentElement.classList.toggle('light', lightMode)
-    localStorage.setItem('clonedzz-theme', lightMode ? 'light' : 'dark')
-  }, [lightMode])
+  useLayoutEffect(() => {
+    const root = document.documentElement
+    const apply = () => {
+      root.classList.toggle('light', theme === 'light')
+      root.classList.toggle('dim', theme === 'dim')
+      localStorage.setItem('clonedzz-theme', theme)
+    }
+    // The switch-guard disables per-element CSS transitions while the theme
+    // class swaps, so var()-driven colors land at their final values instead of
+    // starting a (possibly frozen) transition.
+    const guard = () => {
+      root.classList.add('theme-switching')
+      apply()
+      void root.offsetHeight
+    }
+    // Guarded instant swap for hidden/occluded windows, reduced motion, or API errors.
+    const snap = () => {
+      guard()
+      window.setTimeout(() => root.classList.remove('theme-switching'), 150)
+    }
+    // First run: apply the saved theme before first paint — no flash, no animation.
+    if (firstThemeRun.current) {
+      firstThemeRun.current = false
+      apply()
+      // StrictMode double-invokes effects in dev; reset the flag so the remount
+      // also applies without starting a startup transition.
+      return () => {
+        firstThemeRun.current = true
+      }
+    }
+    // Later runs: cross-fade smoothly via the View Transitions API (only works
+    // while the window is visible — Chromium aborts it when hidden). The guard
+    // suppresses per-element transitions during the cross-fade so the whole UI
+    // lands at its new colors together — one quick, unified motion. The guard is
+    // released exactly when the fade settles (promises are never timer-throttled,
+    // so this is robust even if the transition is aborted).
+    if (!reduceMotion && document.visibilityState === 'visible' && typeof document.startViewTransition === 'function') {
+      try {
+        const vt = document.startViewTransition(guard)
+        vt.finished.then(
+          () => root.classList.remove('theme-switching'),
+          () => root.classList.remove('theme-switching'),
+        )
+      } catch {
+        snap()
+      }
+      return
+    }
+    snap()
+  }, [theme, reduceMotion])
 
   const pushToast = useCallback((kind: ToastKind, text: string) => {
     const id = Date.now() + Math.random()
@@ -366,8 +418,8 @@ export default function App() {
         onDeleteSession={deleteSession}
         onLoadTheme={loadTheme}
         onApplyToken={applyToken}
-        lightMode={lightMode}
-        onToggleTheme={() => setLightMode((v) => !v)}
+        theme={theme}
+        onToggleTheme={() => setTheme(nextTheme)}
         onHome={goHome}
       />
 

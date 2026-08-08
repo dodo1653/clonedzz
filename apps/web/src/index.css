@@ -181,6 +181,72 @@ html.light button { border-color: var(--line); background: rgba(222,215,204,.42)
 html.light button:hover { border-color: rgba(116,105,92,.42); background: rgba(232,225,214,.5); }
 html.light button.primary { border-color: rgba(116,105,92,.3); background: #9b8e7d; color: #f9f3e8; box-shadow: 0 5px 14px rgba(90,77,60,.1); }
 html.light .item:hover { background: rgba(116,105,92,.07); border-color: var(--line); }.light .item.active { background: linear-gradient(100deg, rgba(116,105,92,.13), rgba(116,105,92,.035)); border-color: rgba(116,105,92,.28); }.light .item.active .nm { color: #746656; text-shadow: none; }
+
+/* Dimmed stone daylight room — the "dim light" preset (dimmer surfaces, near-black ink text) */
+html.dim {
+  --bg: #8f867a;
+  --surface: #9a9185;
+  --surface-raised: #a79e92;
+  --surface-hover: #7c7468;
+  --line: rgba(58,48,38,.2);
+  --line-soft: rgba(58,48,38,.12);
+  --text: #211c16;
+  --muted: #3f3931;
+  --faint: #4a423a;
+  --accent: #6d8268;
+  --accent-deep: #4e6050;
+  --accent-2: #687d8a;
+  --ok: #4c7a58;
+}
+html.dim body { background: var(--bg); color: var(--text); }
+html.dim body::before { background: radial-gradient(700px 480px at 74% -5%, rgba(120,105,84,.08), transparent 70%), radial-gradient(620px 420px at 5% 105%, rgba(96,106,110,.06), transparent 75%); }
+html.dim body::after { opacity: .14; background-image: linear-gradient(rgba(58,48,38,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(58,48,38,.04) 1px, transparent 1px); }
+html.dim .sidebar { background: rgba(150,142,130,.92); }
+html.dim .sidebar::before { background: radial-gradient(circle, rgba(109,130,104,.08), transparent 68%); }
+html.dim .brand-line, html.dim .launch-heading h1, html.dim .nm-title, html.dim .score { color: #241f18; }
+html.dim .card h2, html.dim .mini-label, html.dim .side-label, html.dim .field label, html.dim .launch-input > label, html.dim .kv .k, html.dim .fitem .k { color: #3f382e; }
+html.dim .item .sub, html.dim .launch-note, html.dim .fitem .v, html.dim .hint, html.dim .sec .idx { color: #514940; }
+html.dim .launch-heading p, html.dim .check, html.dim .status, html.dim .verify-item .s { color: #373129; }
+html.dim .kv a, html.dim .status.ok a { color: #4a586a; text-decoration-color: rgba(74,88,106,.4); }
+html.dim .brand-line span { color: var(--accent); }
+html.dim .card, html.dim .workflow-stack { border-color: var(--line); background: linear-gradient(135deg, rgba(173,164,150,.97), rgba(158,149,136,.97)); box-shadow: 0 16px 38px rgba(66,54,40,.18), inset 0 1px rgba(255,255,255,.14); }
+html.dim .launch-card { background: linear-gradient(125deg, rgba(168,160,147,.99), rgba(178,169,156,.99) 57%, rgba(166,166,154,.99)); }
+html.dim .launch-card::after { background: radial-gradient(circle, rgba(109,130,104,.08), transparent 68%); }
+html.dim .font-panel, html.dim .notes, html.dim .recipe-overview .token-disclosure .tokens { background: rgba(255,255,255,.12); }
+html.dim input, html.dim textarea, html.dim .url-input-wrap { border-color: var(--line); background: rgba(255,255,255,.22); color: var(--text); }
+html.dim input::placeholder { color: #6f6557; }
+html.dim button { border-color: var(--line); background: rgba(255,255,255,.16); color: var(--text); }
+html.dim button:hover { border-color: rgba(58,48,38,.36); background: rgba(255,255,255,.26); }
+html.dim button.primary { border-color: rgba(58,48,38,.24); background: linear-gradient(115deg, #93a88c, #7d9278); color: #fdfaf1; box-shadow: 0 7px 20px rgba(66,54,40,.24); }
+html.dim button.primary:hover { border-color: rgba(58,48,38,.3); background: linear-gradient(115deg, #a0b599, #879c82); box-shadow: 0 9px 26px rgba(66,54,40,.3); }
+html.dim .item:hover { background: rgba(58,48,38,.09); border-color: var(--line); }.dim .item.active { background: linear-gradient(100deg, rgba(109,130,104,.2), rgba(109,130,104,.06)); border-color: rgba(109,130,104,.34); }.dim .item.active .nm { color: #46583f; text-shadow: none; }.dim .item.active .sub { color: #59684f; }
+html.dim .sec:hover .hd { color: var(--text); }
+html.dim .icon-btn:hover { background: rgba(58,48,38,.12); }
+html.dim .notes { border-left-color: rgba(109,130,104,.5); }
+html.dim .launch-mark { border-color: rgba(109,130,104,.3); }
+html.dim .url-input-wrap:focus-within { border-color: rgba(109,130,104,.5); box-shadow: 0 0 0 3px rgba(109,130,104,.1); }
+html.dim .step.active .dot { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 0 5px rgba(109,130,104,.12), 0 0 18px rgba(109,130,104,.16); }
+html.dim .item.active::before { box-shadow: 0 0 12px rgba(109,130,104,.5); }
+html.dim .side-head:hover .side-count { border-color: rgba(109,130,104,.4); }
+html.dim .workflow-stack::before { background: radial-gradient(500px 120px at 20% 0, rgba(109,130,104,.1), transparent 72%); }
+html.dim .step.busy .dot { border-color: var(--accent-2); color: var(--accent-2); }
+html.dim .swatch { background: rgba(255,255,255,.1); }
+html.dim .pill { background: rgba(255,255,255,.1); }
+html.dim .verify-item .pass { color: var(--ok); }
+html.dim .titlebar-brand em { color: var(--accent); }
+html.dim .key-hint { color: #4a423a; }
+html.dim .workflow-stack > .sections-card { background: rgba(255,255,255,.05); }
+html.dim .workflow-stack > .sections-card::after { background: linear-gradient(to bottom, transparent, rgba(58,48,38,.14), transparent); }
+html.dim .step .dot { background: rgba(255,255,255,.32); }.dim .step.done .dot { color: #fff; }.dim .section-toggle:hover { background: rgba(109,130,104,.1); color: var(--accent); }
+html.dim .theme-toggle { color: var(--accent); }.dim .brand-orbit { border-color: rgba(109,130,104,.42); }.dim .brand-orbit::before { border-color: rgba(109,130,104,.26); }.dim .brand-orbit::after { background: var(--accent); box-shadow: 0 0 8px rgba(109,130,104,.6); }
+.dim .check input { background: rgba(255,255,255,.5); border-color: rgba(58,48,38,.22); }.dim .check input:checked { background: var(--accent-deep); border-color: var(--accent-deep); }.dim .check input:checked::after { border-color: #f2ecdf; }
+html.dim .acid-veil { background: radial-gradient(130% 105% at 50% 0%, rgba(143,134,122,.04) 0%, rgba(143,134,122,.6) 100%); }
+html.dim .titlebar { background: radial-gradient(640px 48px at 50% -6px, rgba(109,130,104,.08), transparent 80%), rgba(150,142,130,.95); box-shadow: 0 1px 0 rgba(58,48,38,.14); }
+html.dim .tb-btn::before { background: rgba(58,48,38,.1); box-shadow: inset 0 0 0 1px rgba(58,48,38,.07); }
+html.dim .tb-close::before { background: rgba(192,73,73,.16); box-shadow: inset 0 0 0 1px rgba(192,73,73,.12); }
+html.dim .tb-close:hover { color: #fff; }
+html.dim .tb-close:hover::before { background: #c04949; box-shadow: inset 0 0 0 1px rgba(255,190,190,.3), 0 0 16px rgba(192,73,73,.3); }
+
 .side-label { font-family: 'Playfair Display', Georgia, serif; font-size: 12px; font-style: italic; font-weight: 500; letter-spacing: .01em; text-transform: none; }
 .item .nm { font-style: italic; font-weight: 500; }
 button { font-style: italic; transition: transform .48s cubic-bezier(.16,1,.3,1), border-color .48s ease, background .48s ease, box-shadow .48s ease, color .48s ease; }
@@ -295,3 +361,20 @@ html.light .tb-close:hover::before { background: #c04949; box-shadow: inset 0 0 
 /* Hide scrollbars app-wide while keeping scrollability */
 * { scrollbar-width: none; -ms-overflow-style: none; }
 *::-webkit-scrollbar { display: none; }
+
+/* Smooth theme cross-fade via the View Transitions API (used when the window is
+   visible). Kept short so switching themes feels quick and crisp, not sluggish.
+   The eased curve starts fast and settles gently. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 240ms;
+  animation-timing-function: cubic-bezier(.16, 1, .3, 1);
+}
+
+/* Theme switching fallback: temporarily kill transitions/animations while the
+   theme class swaps, so var()-driven colors snap instead of freezing. Only used
+   when the window is hidden/occluded or the View Transitions API is missing. */
+.theme-switching, .theme-switching *, .theme-switching *::before, .theme-switching *::after {
+  transition: none !important;
+  animation: none !important;
+}
