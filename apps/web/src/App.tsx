@@ -5,6 +5,7 @@ import { GenerateCard } from './components/GenerateCard'
 import { PreviewCard } from './components/PreviewCard'
 import { PushCard } from './components/PushCard'
 import TitleBar from './components/TitleBar'
+import AcidSquares from './components/AcidSquares'
 import { RecipeCard } from './components/RecipeCard'
 import { SectionsCard } from './components/SectionsCard'
 import { Sidebar } from './components/Sidebar'
@@ -33,6 +34,9 @@ function normUrl(u: string): string {
 }
 
 export default function App() {
+  const [reduceMotion] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  )
   const [url, setUrl] = useState('')
   const [token, setToken] = useState<TokenSiteData>({ name: '', ticker: '', ca: '', x: '', blurb: '' })
   const [tokenMode, setTokenMode] = useState(false)
@@ -314,6 +318,34 @@ export default function App() {
   return (
     <div className="app has-titlebar">
       <TitleBar />
+      {!reduceMotion && (
+        <AcidSquares
+          className="acid-bg"
+          color1="#0d3a2c"
+          color2="#b7e4c7"
+          color3="#eafff2"
+          detail="medium"
+          speed={0.55}
+          waveDepth={1.2}
+          zoom={1.25}
+          density={9}
+          glow={1.15}
+          exposure={2300}
+          spread={0.28}
+          stepSize={0.002}
+          colorShift={0.6}
+          contrast={1.05}
+          brightness={1.15}
+          opacity={0.9}
+          mouseInteraction={false}
+          mouseStrength={0.12}
+          mouseRadius={0.4}
+          blur={0}
+          grain
+          grainIntensity={0.04}
+        />
+      )}
+      <div className="acid-veil" aria-hidden="true" />
       <Sidebar
         sessions={sessions}
         themes={themes}

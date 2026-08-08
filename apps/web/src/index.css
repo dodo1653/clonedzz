@@ -235,6 +235,11 @@ html.light .theme-toggle { color: var(--accent); }.light .brand-orbit { border-c
 .item.active .nm { animation: soft-type-arrive .56s both cubic-bezier(.16,1,.3,1); }
 .check input { appearance: none; position: relative; display: inline-grid; place-content: center; width: 15px; height: 15px; flex: none; border: 1px solid var(--line); border-radius: 5px; background: rgba(255,255,255,.035); cursor: pointer; transition: border-color .22s ease, background .22s ease, box-shadow .22s ease, transform .18s ease; }.check input::after { content: ''; width: 7px; height: 4px; border-bottom: 1.5px solid #fff; border-left: 1.5px solid #fff; opacity: 0; transform: rotate(-45deg) scale(.5) translate(1px,-1px); transition: opacity .2s ease, transform .25s cubic-bezier(.16,1,.3,1); }.check input:checked { border-color: var(--accent); background: var(--accent-deep); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent); }.check input:checked::after { opacity: 1; transform: rotate(-45deg) scale(1) translate(1px,-1px); }.check input:active { transform: scale(.9); }.check:has(input:checked) { color: var(--text); }.light .check input { background: rgba(255,255,255,.58); }.light .check input:checked { background: var(--accent); border-color: var(--accent); }
 
+/* AcidSquares background layer (decorative, behind all content) */
+.acid-bg { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
+.acid-veil { position: fixed; inset: 0; z-index: -1; pointer-events: none; background: radial-gradient(130% 105% at 50% 0%, rgba(11,12,15,.05) 0%, rgba(11,12,15,.5) 100%); }
+html.light .acid-veil { background: radial-gradient(130% 105% at 50% 0%, rgba(201,194,183,.05) 0%, rgba(201,194,183,.55) 100%); }
+
 /* Custom app-chrome title bar */
 .app.has-titlebar { padding-top: 48px; }
 .app.has-titlebar .sidebar { height: calc(100vh - 48px); min-height: calc(100vh - 48px); }
