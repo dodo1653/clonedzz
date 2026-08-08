@@ -1,10 +1,13 @@
-// Renders build/icon-src.html offscreen and saves build/icon.png (512x512).
-// Run with the project's electron binary: electron build/capture-icon.cjs
+// Renders an icon source HTML offscreen and saves it as a 512x512 PNG.
+// Usage: electron build/capture-icon.cjs [input.html] [output.png]
+//   defaults: icon-src.html -> icon.png
 const { app, BrowserWindow } = require('electron')
 const { writeFileSync } = require('node:fs')
 const { join } = require('node:path')
 
 const SIZE = 512
+const INPUT = process.argv[2] || 'icon-src.html'
+const OUTPUT = process.argv[3] || 'icon.png'
 app.disableHardwareAcceleration()
 
 app.whenReady().then(async () => {
@@ -16,7 +19,7 @@ app.whenReady().then(async () => {
     transparent: true,
     webPreferences: { offscreen: true },
   })
-  await win.loadFile(join(__dirname, 'icon-src.html'))
+  await win.loadFile(join(__dirname, INPUT))
   await new Promise((r) => setTimeout(r, 3000))
   const rect = await win.webContents.executeJavaScript(`(() => {
     const r = document.querySelector('.tile').getBoundingClientRect()
@@ -24,7 +27,7 @@ app.whenReady().then(async () => {
   })()`)
   const image = await win.webContents.capturePage(rect)
   const resized = image.resize({ width: 512, height: 512 })
-  const out = join(__dirname, 'icon.png')
+  const out = join(__dirname, OUTPUT)
   writeFileSync(out, resized.toPNG())
   const bmp = resized.toBitmap()
   const { width, height } = resized.getSize()

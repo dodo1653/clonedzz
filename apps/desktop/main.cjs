@@ -106,7 +106,7 @@ if (!app.requestSingleInstanceLock()) {
       width: 1440,
       height: 900,
       title: 'CloneDzz',
-      icon: join(__dirname, 'build', 'icon.png'),
+      icon: join(__dirname, 'build', 'icon-light.png'),
       backgroundColor: '#0b0c0f',
       autoHideMenuBar: true,
       frame: false,
