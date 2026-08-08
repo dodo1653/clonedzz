@@ -174,7 +174,7 @@ export function Sidebar({
   onHome: () => void
 }) {
   return (
-    <aside className="sidebar">
+    <aside className="sidebar" data-lenis-prevent>
       <div className="brand">
         <div className="brand-topline brand-home" onClick={onHome} role="button" tabIndex={0} title="Return home" onKeyDown={(e) => e.key === 'Enter' && onHome()}>
           <div className="brand-line">

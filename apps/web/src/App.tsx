@@ -6,6 +6,7 @@ import { PreviewCard } from './components/PreviewCard'
 import { PushCard } from './components/PushCard'
 import TitleBar from './components/TitleBar'
 import AcidSquares from './components/AcidSquares'
+import { useLenis } from './lib/useLenis'
 import { RecipeCard } from './components/RecipeCard'
 import { SectionsCard } from './components/SectionsCard'
 import { Sidebar } from './components/Sidebar'
@@ -34,6 +35,8 @@ function normUrl(u: string): string {
 }
 
 export default function App() {
+  useLenis()
+
   const [reduceMotion] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   )
