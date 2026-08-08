@@ -1,12 +1,46 @@
 {
   "name": "@clonedzz/desktop",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
+  "description": "CloneDzz — replicate any website into a runnable React project",
+  "author": "CloneDzz",
   "main": "main.cjs",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "build:server": "tsc -p tsconfig.server.json && node -e \"require('fs').writeFileSync('server-dist/package.json', JSON.stringify({ type: 'module' }, null, 2))\"",
+    "dist": "node build-release.cjs",
+    "dist:dir": "node build-release.cjs --dir"
+  },
+  "build": {
+    "appId": "com.clonedzz.desktop",
+    "productName": "CloneDzz",
+    "compression": "maximum",
+    "electronLanguages": ["en-US"],
+    "asar": true,
+    "files": ["main.cjs", "preload.cjs", "package.json", "build/icon.png"],
+    "extraResources": [
+      { "from": "server-dist", "to": "server" },
+      { "from": "server-deps/node_modules", "to": "server/node_modules" },
+      { "from": "../web/dist", "to": "web" },
+      { "from": "browsers", "to": "browsers" }
+    ],
+    "directories": { "output": "release" },
+    "win": {
+      "icon": "build/icon.png",
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "CloneDzz"
+    }
   },
   "devDependencies": {
-    "electron": "^33.0.0"
+    "electron": "33.4.11",
+    "electron-builder": "^26.15.3"
   }
 }

@@ -6,3 +6,7 @@ library/sessions/*/
 !library/sessions/.gitkeep
 *.log
 .DS_Store
+apps/desktop/server-dist/
+apps/desktop/server-deps/
+apps/desktop/browsers/
+apps/desktop/release/

@@ -60,8 +60,52 @@ node packages/engine/src/cli.ts <url> --name my-token --token-name "Salary Cat" 
 
 When `apps/web/dist` exists the server also serves the dashboard statically on :4747.
 
+## Windows desktop app
+
+The dashboard ships as a frameless Electron desktop app (custom title bar, minimize/maximize/close
+controls) that bundles its own server, web UI, and a trimmed headless Chromium — no system Node or
+browser install needed.
+
+### Build a release
+
+```bash
+npm run build -w apps/web                     # web dashboard
+node apps/desktop/build-release.cjs --dir    # unpacked smoke build (fast)
+node apps/desktop/build-release.cjs          # full release: NSIS installer + portable exe
+```
+
+The build script: compiles the server (tsc, no type-check) + engine, stages runtime deps
+(express/cors/playwright-core) and the compiled engine into `apps/desktop/server-deps`,
+`npm install`s them in a private prefix, copies the Playwright headless-shell browser and trims it
+(locales to en-US, en hyphenation, marker files), builds the web bundle, and runs electron-builder
+(`compression: maximum`, Electron locales trimmed to en-US, official icon embedded).
+
+Artifacts land in `apps/desktop/release/`:
+
+```
+CloneDzz Setup <ver>.exe   NSIS installer (per-user, optional desktop shortcut, changable dir)
+CloneDzz <ver>.exe         portable self-extracting exe
+```
+
+### How the packaged app runs
+
+- `main.cjs` detects `app.isPackaged`; the packaged server is spawned on **Electron's embedded Node**
+  (`ELECTRON_RUN_AS_NODE`) so end users need no system Node.
+- Packaged paths: server + node_modules live in `resources/server`, web UI in `resources/web`,
+  browsers in `resources/browsers` (`PLAYWRIGHT_BROWSERS_PATH`); sessions/library/outputs are
+  written under Electron's `userData` dir (`%APPDATA%/@clonedzz/desktop/{library,outputs}`).
+- The first launch of the packaged app builds the `browsers/` bundle — keep the `resources/browsers`
+  folder next to the exe.
+
+### Size notes
+
+A release is roughly **143 MB** per artifact: Electron (~180 MB exe + runtimes) plus a headless
+Chromium (~200 MB exe) are irreducible, but locales (44 MB browser + 41 MB Electron), the Playwright
+CLI wrapper, hyphenation packs, and dep docs are stripped. LZMA `maximum` compression takes the
+~470 MB payload down to ~143 MB installers.
+
 ## Notes
 
-- Playwright browsers are shared with the system cache; if the first run can't find a browser, run `npx playwright install chromium`.
+- Playwright browsers are shared with the system cache in dev; if the first run can't find a browser, run `npx playwright install chromium`. (The packaged app bundles its own.)
 - Vite binds `::1` on Windows by default; verify/preview always use `--host 127.0.0.1`.
 - Generated replicas are standalone projects — `cd outputs/<name> && npm run dev`.

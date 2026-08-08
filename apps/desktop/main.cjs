@@ -2,11 +2,35 @@ const { app, BrowserWindow, shell, ipcMain } = require('electron')
 const { spawn, spawnSync } = require('node:child_process')
 const { join } = require('node:path')
 
-const ROOT = join(__dirname, '..', '..')
-const SERVER_ENTRY = join(ROOT, 'apps', 'server', 'src', 'index.ts')
-const SERVER_DIR = join(ROOT, 'apps', 'server')
+const isPackaged = app.isPackaged
+const RES = isPackaged ? process.resourcesPath : join(__dirname, '..', '..')
 const PORT = Number(process.env.PORT || 4747)
 const URL = `http://127.0.0.1:${PORT}`
+
+// --- paths ---
+let serverCmd
+let serverArgs
+let serverEnv
+if (isPackaged) {
+  // resources/server is unpacked (not inside the asar) so the server can read/write beside it.
+  // Run it on Electron's own embedded Node (ELECTRON_RUN_AS_NODE) — no system Node needed.
+  serverCmd = process.execPath
+  serverArgs = [join(RES, 'server', 'apps', 'server', 'src', 'index.js')]
+  serverEnv = {
+    ...process.env,
+    ELECTRON_RUN_AS_NODE: '1',
+    CLONEDZZ_ROOT: join(RES, 'server'),
+    CLONEDZZ_LIBRARY: join(app.getPath('userData'), 'library'),
+    CLONEDZZ_WEB_DIR: join(RES, 'web'),
+    CLONEDZZ_OUTPUTS: join(app.getPath('userData'), 'outputs'),
+    PLAYWRIGHT_BROWSERS_PATH: join(RES, 'browsers'),
+  }
+} else {
+  // dev: run the TS entry on the system node (dev machines have a modern Node with type stripping)
+  serverCmd = 'node'
+  serverArgs = [join(RES, 'apps', 'server', 'src', 'index.ts')]
+  serverEnv = { ...process.env }
+}
 
 let serverProc = null
 let ownServer = false
@@ -23,17 +47,19 @@ async function isUp() {
 async function ensureServer() {
   if (await isUp()) return
   ownServer = true
-  serverProc = spawn('node', [SERVER_ENTRY], {
-    cwd: SERVER_DIR,
-    stdio: ['ignore', 'pipe', 'pipe'],
-    shell: process.platform === 'win32',
-  })
+const cwd = serverEnv.CLONEDZZ_ROOT || join(RES, 'apps', 'server')
+serverProc = spawn(serverCmd, serverArgs, {
+  cwd,
+  env: serverEnv,
+  stdio: ['ignore', 'pipe', 'pipe'],
+  shell: process.platform === 'win32' && serverCmd === 'node',
+})
   serverProc.stdout?.on('data', (d) => process.stdout.write(`[server] ${d}`))
   serverProc.stderr?.on('data', (d) => process.stderr.write(`[server] ${d}`))
   serverProc.on('exit', () => {
     if (ownServer) serverProc = null
   })
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 120; i++) {
     if (await isUp()) return
     await new Promise((r) => setTimeout(r, 500))
   }
@@ -47,6 +73,8 @@ function stopServer() {
     serverProc = null
   }
 }
+
+if (process.platform === 'win32') app.setAppUserModelId('com.clonedzz.desktop')
 
 if (!app.requestSingleInstanceLock()) {
   app.quit()
@@ -78,6 +106,7 @@ if (!app.requestSingleInstanceLock()) {
       width: 1440,
       height: 900,
       title: 'CloneDzz',
+      icon: join(__dirname, 'build', 'icon.png'),
       backgroundColor: '#0b0c0f',
       autoHideMenuBar: true,
       frame: false,

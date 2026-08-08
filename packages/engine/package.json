@@ -10,6 +10,6 @@
     "analyze": "node --import tsx src/cli.ts"
   },
   "dependencies": {
-    "playwright": "^1.62.1"
+    "playwright-core": "^1.62.1"
   }
 }

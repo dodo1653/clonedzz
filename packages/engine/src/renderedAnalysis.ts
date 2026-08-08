@@ -1,4 +1,4 @@
-import { chromium } from 'playwright'
+import { chromium } from 'playwright-core'
 import type {
   CanvasInfo,
   NavInfo,
@@ -303,7 +303,7 @@ function styleSection(s: Section): Section {
   return { ...s, bg, align, textColor }
 }
 
-async function readNav(page: import('playwright').Page): Promise<NavInfo | null> {
+async function readNav(page: import('playwright-core').Page): Promise<NavInfo | null> {
   return page.evaluate(() => {
     const navEl = document.querySelector('header nav, nav')
     if (!navEl) return null
@@ -345,7 +345,7 @@ async function readNav(page: import('playwright').Page): Promise<NavInfo | null>
   })
 }
 
-async function readVideos(page: import('playwright').Page): Promise<VideoInfo[]> {
+async function readVideos(page: import('playwright-core').Page): Promise<VideoInfo[]> {
   return page.evaluate(async () => {
     const out: VideoInfo[] = []
     for (const v of document.querySelectorAll<HTMLVideoElement>('video')) {
@@ -366,7 +366,7 @@ async function readVideos(page: import('playwright').Page): Promise<VideoInfo[]>
   })
 }
 
-async function readImages(page: import('playwright').Page): Promise<string[]> {
+async function readImages(page: import('playwright-core').Page): Promise<string[]> {
   return page.evaluate(() =>
     [...document.querySelectorAll<HTMLImageElement>('img')]
       .map((i) => i.currentSrc || i.src)
@@ -374,7 +374,7 @@ async function readImages(page: import('playwright').Page): Promise<string[]> {
   )
 }
 
-async function readCanvases(page: import('playwright').Page): Promise<CanvasInfo[]> {
+async function readCanvases(page: import('playwright-core').Page): Promise<CanvasInfo[]> {
   const list = await page.evaluate(() =>
     [...document.querySelectorAll('canvas')].map((c) => {
       const r = c.getBoundingClientRect()
@@ -452,7 +452,7 @@ async function readCanvases(page: import('playwright').Page): Promise<CanvasInfo
   return out
 }
 
-async function measureReveal(page: import('playwright').Page, blocks: TextBlock[]): Promise<RevealInfo | null> {
+async function measureReveal(page: import('playwright-core').Page, blocks: TextBlock[]): Promise<RevealInfo | null> {
   const big = blocks.find((b) => b.fontSize >= 60 && /^[p,h]/i.test(b.tag))
   if (!big) return null
 

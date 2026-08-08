@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "outDir": "server-dist",
+    "rootDir": "../..",
+    "rewriteRelativeImportExtensions": true,
+    "allowImportingTsExtensions": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "noCheck": true,
+    "types": ["node"],
+    "baseUrl": "../..",
+    "paths": {
+      "@clonedzz/engine": ["packages/engine/src/index.ts"]
+    }
+  },
+  "include": ["../server/src/index.ts", "../../packages/engine/src/**/*.ts"]
+}

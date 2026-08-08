@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { join } from 'node:path'
-import { chromium, type Page } from 'playwright'
+import { chromium, type Page } from 'playwright-core'
 import type { FidelityMetric, VerifyReport } from './types.ts' 
 
 export interface VerifyOptions {

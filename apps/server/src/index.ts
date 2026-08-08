@@ -6,12 +6,13 @@ import express from 'express'
 import cors from 'cors'
 import { analyzeUrl, generateProject, verifyReplica, type Recipe, type TokenSiteData } from '@clonedzz/engine'
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
-const LIBRARY = join(ROOT, 'library')
+// In the packaged desktop app these point at resourcesPath / userData; in dev they fall back to the repo layout.
+const ROOT = process.env.CLONEDZZ_ROOT || join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
+const LIBRARY = process.env.CLONEDZZ_LIBRARY || join(ROOT, 'library')
 const THEMES_DIR = join(LIBRARY, 'themes')
 const TOKENS_DIR = join(LIBRARY, 'tokens')
 const SESSIONS_DIR = join(LIBRARY, 'sessions')
-const OUTPUTS_DIR = join(ROOT, 'outputs')
+const OUTPUTS_DIR = process.env.CLONEDZZ_OUTPUTS || join(ROOT, 'outputs')
 for (const d of [THEMES_DIR, TOKENS_DIR, SESSIONS_DIR, OUTPUTS_DIR]) mkdirSync(d, { recursive: true })
 
 const app = express()
@@ -323,7 +324,7 @@ app.get('/api/outputs', (_req, res) => {
 })
 
 // --- static web (production) ---
-const WEB_DIST = join(ROOT, 'apps', 'web', 'dist')
+const WEB_DIST = process.env.CLONEDZZ_WEB_DIR || join(ROOT, 'apps', 'web', 'dist')
 if (existsSync(WEB_DIST)) {
   app.use(express.static(WEB_DIST))
   app.get('*', (_req, res) => {
