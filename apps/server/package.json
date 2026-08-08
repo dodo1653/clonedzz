@@ -1,5 +1,5 @@
 {
-  "name": "@cloneforge/server",
+  "name": "@clonedzz/server",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -8,7 +8,7 @@
     "start": "node src/index.ts"
   },
   "dependencies": {
-    "@cloneforge/engine": "*",
+    "@clonedzz/engine": "*",
     "cors": "^2.8.5",
     "express": "^4.21.2"
   },

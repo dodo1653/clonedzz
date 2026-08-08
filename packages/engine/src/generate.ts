@@ -548,7 +548,7 @@ function Footer({ d }: { d: SectionData }) {
             </div>
           </div>
           <p className="mt-8 text-center font-body text-sm font-light text-white/50">
-            {d.bodies[0] || 'Made with CloneForge. Not financial advice.'}
+            {d.bodies[0] || 'Made with CloneDzz. Not financial advice.'}
           </p>
         </Reveal>
       </div>

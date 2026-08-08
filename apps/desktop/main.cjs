@@ -37,7 +37,7 @@ async function ensureServer() {
     if (await isUp()) return
     await new Promise((r) => setTimeout(r, 500))
   }
-  throw new Error('cloneforge server failed to start')
+  throw new Error('clonedzz server failed to start')
 }
 
 function stopServer() {
@@ -77,7 +77,7 @@ if (!app.requestSingleInstanceLock()) {
     const win = new BrowserWindow({
       width: 1440,
       height: 900,
-      title: 'CloneForge',
+      title: 'CloneDzz',
       backgroundColor: '#0b0c0f',
       autoHideMenuBar: true,
       frame: false,

@@ -4,7 +4,7 @@ import { mkdirSync, readdirSync, readFileSync, writeFileSync, rmSync, existsSync
 import { spawn } from 'node:child_process'
 import express from 'express'
 import cors from 'cors'
-import { analyzeUrl, generateProject, verifyReplica, type Recipe, type TokenSiteData } from '@cloneforge/engine'
+import { analyzeUrl, generateProject, verifyReplica, type Recipe, type TokenSiteData } from '@clonedzz/engine'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
 const LIBRARY = join(ROOT, 'library')
@@ -64,7 +64,7 @@ app.post('/api/generate', async (req, res) => {
       removeGates: body.removeGates === true,
     })
     writeFileSync(
-      join(result.dir, '.cloneforge.json'),
+      join(result.dir, '.clonedzz.json'),
       JSON.stringify({ sourceUrl: recipe.sourceUrl, title: recipe.title, name: recipe.name, createdAt: new Date().toISOString() }, null, 2),
     )
     if (body.install !== false && !existsSync(join(result.dir, 'static.json'))) {
@@ -240,7 +240,7 @@ app.delete('/api/sessions/:id', (req, res) => {
 })
 app.post('/api/push', async (req, res) => {
   try {
-    const { dir, repo, branch = 'main', token, message = 'Deploy from CloneForge' } = req.body as {
+    const { dir, repo, branch = 'main', token, message = 'Deploy from CloneDzz' } = req.body as {
       dir?: string
       repo?: string
       branch?: string
@@ -271,8 +271,8 @@ app.post('/api/push', async (req, res) => {
     if (!existsSync(gi)) writeFileSync(gi, ignore.join('\n') + '\n')
 
     await runOut('git', ['init', '-b', branch], target)
-    await runOut('git', ['config', 'user.name', 'CloneForge'], target)
-    await runOut('git', ['config', 'user.email', 'cloneforge@users.noreply.github.com'], target)
+    await runOut('git', ['config', 'user.name', 'CloneDzz'], target)
+    await runOut('git', ['config', 'user.email', 'clonedzz@users.noreply.github.com'], target)
     await runOut('git', ['add', '-A'], target)
     const dirty = (await runOut('git', ['status', '--porcelain'], target)).trim()
     if (dirty) await runOut('git', ['commit', '-m', message], target)
@@ -309,7 +309,7 @@ app.get('/api/outputs', (_req, res) => {
     .map((e) => {
       const pkg = JSON.parse(readFileSync(join(OUTPUTS_DIR, e.name, 'package.json'), 'utf8'))
       const installed = existsSync(join(OUTPUTS_DIR, e.name, 'node_modules'))
-      const metaFile = join(OUTPUTS_DIR, e.name, '.cloneforge.json')
+      const metaFile = join(OUTPUTS_DIR, e.name, '.clonedzz.json')
       const meta = existsSync(metaFile) ? JSON.parse(readFileSync(metaFile, 'utf8')) : null
       return {
         name: e.name,
@@ -333,7 +333,7 @@ if (existsSync(WEB_DIST)) {
 
 const PORT = Number(process.env.PORT || 4747)
 app.listen(PORT, () => {
-  console.log(`cloneforge server on http://localhost:${PORT}`)
+  console.log(`clonedzz server on http://localhost:${PORT}`)
 })
 
 // --- helpers ---

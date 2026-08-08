@@ -178,7 +178,7 @@ export function Sidebar({
       <div className="brand">
         <div className="brand-topline brand-home" onClick={onHome} role="button" tabIndex={0} title="Return home" onKeyDown={(e) => e.key === 'Enter' && onHome()}>
           <div className="brand-line">
-            clone<span>forge</span>
+            clone<span>dzz</span>
           </div>
           <span className="brand-orbit" aria-hidden="true" />
         </div>

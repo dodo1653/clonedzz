@@ -27,7 +27,7 @@ export function CloneCard({
       <div className="launch-heading">
         <div>
           <h1>{hasRecipe ? 'Refine the source.' : 'Start with a website.'}</h1>
-          <p>{hasRecipe ? 'Replace the URL to begin a new analysis, or continue through the recipe below.' : 'CloneForge reads its visual language, then turns it into a runnable React project.'}</p>
+          <p>{hasRecipe ? 'Replace the URL to begin a new analysis, or continue through the recipe below.' : 'clonedzz reads its visual language, then turns it into a runnable React project.'}</p>
         </div>
         <div className="launch-mark" aria-hidden="true">↗</div>
       </div>

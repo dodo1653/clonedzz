@@ -53,7 +53,7 @@ export default function TitleBar() {
       <div className="titlebar-left" aria-hidden="true" />
 
       <div className="titlebar-brand">
-        clone<em>forge</em>
+        clone<em>dzz</em>
       </div>
 
       <div className="titlebar-controls">

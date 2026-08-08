@@ -56,11 +56,11 @@ export default function App() {
   const [pushing, setPushing] = useState(false)
   const [pushResult, setPushResult] = useState<PushResult | null>(null)
   const [toasts, setToasts] = useState<{ id: number; kind: ToastKind; text: string }[]>([])
-  const [lightMode, setLightMode] = useState(() => localStorage.getItem('cloneforge-theme') === 'light')
+  const [lightMode, setLightMode] = useState(() => localStorage.getItem('clonedzz-theme') === 'light')
 
   useEffect(() => {
     document.documentElement.classList.toggle('light', lightMode)
-    localStorage.setItem('cloneforge-theme', lightMode ? 'light' : 'dark')
+    localStorage.setItem('clonedzz-theme', lightMode ? 'light' : 'dark')
   }, [lightMode])
 
   const pushToast = useCallback((kind: ToastKind, text: string) => {

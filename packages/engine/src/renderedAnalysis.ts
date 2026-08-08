@@ -16,7 +16,7 @@ export interface RenderedOptions {
   height?: number
 }
 
-const HEADLESS = process.env.CLONEFORGE_BROWSER_HEADLESS !== '0'
+const HEADLESS = process.env.CLONEDZZ_BROWSER_HEADLESS !== '0'
 
 export async function renderedAnalysis(url: string, opts: RenderedOptions = {}): Promise<RenderedAnalysis> {
   const width = opts.width ?? 1440
