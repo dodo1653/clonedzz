@@ -51,6 +51,7 @@ app.post('/api/generate', async (req, res) => {
       token?: TokenSiteData | null
       install?: boolean
       removeGates?: boolean
+      bakeAssets?: boolean
     }
     const recipe = body.recipe ?? (body.sessionId ? readRecipe(body.sessionId) : null)
     if (!recipe) {
@@ -63,6 +64,7 @@ app.post('/api/generate', async (req, res) => {
       recipe,
       token: body.token ?? null,
       removeGates: body.removeGates === true,
+      bakeAssets: body.bakeAssets === true,
     })
     writeFileSync(
       join(result.dir, '.clonedzz.json'),

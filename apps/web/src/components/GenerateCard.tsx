@@ -3,6 +3,8 @@ export function GenerateCard({
   onRecipeName,
   removeGates,
   onRemoveGates,
+  bakeAssets,
+  onBakeAssets,
   onGenerate,
   onSaveTheme,
   generating,
@@ -12,6 +14,8 @@ export function GenerateCard({
   onRecipeName: (v: string) => void
   removeGates: boolean
   onRemoveGates: (v: boolean) => void
+  bakeAssets: boolean
+  onBakeAssets: (v: boolean) => void
   onGenerate: () => void
   onSaveTheme: () => void
   generating: boolean
@@ -27,6 +31,13 @@ export function GenerateCard({
       <label className="check">
         <input type="checkbox" checked={removeGates} onChange={(e) => onRemoveGates(e.target.checked)} />
         <span>remove login / wallet gates (auto-detect &amp; bypass wallet checks, isHolder-style access denial, login failure)</span>
+      </label>
+      <label className="check">
+        <input type="checkbox" checked={bakeAssets} onChange={(e) => onBakeAssets(e.target.checked)} />
+        <span>
+          download everything locally (self-contained: css, js, images and subpages are saved into the clone —
+          <em> no live proxy to the original site</em>)
+        </span>
       </label>
       <div className="actions">
         <button className="primary" onClick={onGenerate} disabled={generating}>

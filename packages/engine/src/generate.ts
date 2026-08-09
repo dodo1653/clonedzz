@@ -1,5 +1,6 @@
 import { mkdir, writeFile, rm, readFile } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { createHash } from 'node:crypto'
+import { dirname, extname, join, sep } from 'node:path'
 import type { ComponentSpec, GenerateOptions, GenerateResult, Recipe, TokenSiteData } from './types.ts'
 import { slugify, isDark } from './util.ts'
 import {
@@ -75,12 +76,27 @@ export async function generateProject(opts: GenerateOptions): Promise<GenerateRe
     await write('index.html', html)
     await write('serve.mjs', staticServeMjs(origin))
     await write('static.json', JSON.stringify({ sourceUrl: recipe.sourceUrl, generatedAt: new Date().toISOString() }, null, 2))
-    if (token) {
-      const baked = await bakeTokenAssets(dir, origin)
-      const patched = await patchTokenFiles(dir, baked, recipe, token)
-      warnings.push(
-        `token factory: mirrored the live site and swapped in your token — ${patched} file(s) patched for CA/ticker/X${baked.length ? ` (${baked.length} assets baked locally)` : ''}`,
-      )
+    if (opts.bakeAssets || token) {
+      // Download every referenced same-origin asset (css/js/images/fonts/subpages) onto disk
+      // so the replica is self-contained. With bakeAssets we also rewrite absolute origin URLs
+      // in HTML/CSS to local paths; the token-only path keeps the original crawl behaviour.
+      const baked = opts.bakeAssets ? await bakeLocalAssets(dir, origin) : await bakeTokenAssets(dir, origin)
+      if (opts.bakeAssets) {
+        const pages = baked.filter((p) => /\.html?$/i.test(p)).length
+        warnings.push(
+          `self-contained: downloaded ${baked.length} local asset file(s)${pages ? `, including ${pages} subpage(s)` : ''} — the replica no longer depends on the live site`,
+        )
+        for (const p of baked) {
+          const rel = p.replace(/^\//, '')
+          if (!files.includes(rel)) files.push(rel)
+        }
+      }
+      if (token) {
+        const patched = await patchTokenFiles(dir, baked, recipe, token)
+        warnings.push(
+          `token factory: mirrored the live site and swapped in your token — ${patched} file(s) patched for CA/ticker/X${baked.length ? ` (${baked.length} assets baked locally)` : ''}`,
+        )
+      }
     }
     return { dir, files, warnings }
   }
@@ -92,7 +108,16 @@ export async function generateProject(opts: GenerateOptions): Promise<GenerateRe
     await rm(join(dir, stale), { force: true })
   }
 
-  const content = buildContent(recipe, token)
+  let mediaMap: Map<string, string> | null = null
+  if (opts.bakeAssets) {
+    mediaMap = await bakeRecipeMedia(dir, recipe)
+    if (mediaMap.size) {
+      warnings.push('self-contained: downloaded ' + mediaMap.size + ' media file(s) (images/videos) into public/media — no hotlinking')
+      for (const [, rel] of mediaMap) files.push(rel)
+    }
+  }
+
+  const content = buildContent(recipe, token, mediaMap)
   const sectionsTsx = buildSectionsTsx(recipe, reveal)
 
   await write('package.json', packageJson(name))
@@ -178,7 +203,7 @@ function sanitizeCss(css: string): string {
   return c.slice(0, 350000)
 }
 
-function buildContent(recipe: Recipe, token: TokenSiteData | null | undefined): string {
+function buildContent(recipe: Recipe, token: TokenSiteData | null | undefined, mediaMap?: Map<string, string> | null): string {
   const hero = recipe.components.find((c) => c.type === 'Hero')
   const ca = token?.ca ?? recipe.contractAddresses[0] ?? null
 
@@ -222,7 +247,8 @@ function buildContent(recipe: Recipe, token: TokenSiteData | null | undefined): 
       ?.blocks.filter((b) => b.fontSize < 24 && b.text.length > 10)
       .map((b) => b.text)[0] ?? null
 
-  const video = recipe.components.find((c) => c.type === 'Video')?.media?.[0] ?? null
+  const videoUrl = recipe.components.find((c) => c.type === 'Video')?.media?.[0] ?? null
+  const video = videoUrl ? (mediaMap?.get(videoUrl) ?? videoUrl) : null
 
   const socials = token
     ? [
@@ -234,11 +260,11 @@ function buildContent(recipe: Recipe, token: TokenSiteData | null | undefined): 
 
   const headline = hero?.headline ?? token?.name ?? recipe.title
   const sub = hero?.body?.[0] ?? token?.description ?? ''
-  const images = recipe.images?.slice(0, 30) ?? []
+  const images = (recipe.images?.slice(0, 30) ?? []).map((u) => mediaMap?.get(u) ?? u)
 
   const sections = recipe.components
     .filter((c) => c.type !== 'Nav')
-    .map((c) => buildSectionData(c))
+    .map((c) => buildSectionData(c, mediaMap))
 
   const tokenObj = token
     ? {
@@ -281,7 +307,7 @@ function buildContent(recipe: Recipe, token: TokenSiteData | null | undefined): 
   return lines.join('\n')
 }
 
-function buildSectionData(c: ComponentSpec) {
+function buildSectionData(c: ComponentSpec, mediaMap?: Map<string, string> | null) {
   const label = c.blocks.find((b) => /^\/\//.test(b.text))?.text ?? `// section ${c.index + 1}`
   return {
     type: c.type,
@@ -289,7 +315,7 @@ function buildSectionData(c: ComponentSpec) {
     headline: c.headline ?? undefined,
     bodies: c.body ?? [],
     items: c.items ?? [],
-    media: c.media ?? [],
+    media: (c.media ?? []).map((u) => mediaMap?.get(u) ?? u),
     bg: c.bg ?? undefined,
     align: c.align ?? undefined,
     textColor: c.textColor ?? undefined,
@@ -952,4 +978,176 @@ function replaceNameSafe(text: string, oldName: string, newName: string, isHtml:
   }
   const quotedRe = new RegExp(`([^=.(\\[{?]|^)(["'])${escapeRegExp(on)}(["'])`, 'gi')
   return text.replace(quotedRe, (_m, pre: string, q: string, q2: string) => pre + q + nn + q2)
+}
+
+// --- self-contained baking ("download everything locally") ---
+// Crawls the written index.html (plus linked same-origin subpages, depth/count
+// limited) and downloads every referenced asset onto disk under the same path,
+// then rewrites absolute same-origin URLs in HTML/CSS to local root-relative
+// paths. serve.mjs serves local files first, so baked replicas keep working
+// even if the original site goes down.
+
+const BAKE_MAX_PAGES = 24
+const BAKE_MAX_FILES = 400
+const BAKE_MAX_BYTES = 30_000_000
+const BAKE_TEXT_EXT = /\.(?:html?|js|mjs|css|json|txt|xml|svg)$/i
+const BAKE_BINARY_EXT = /\.(?:js|mjs|css|png|jpe?g|gif|webp|svg|avif|mp4|webm|mp3|wav|ogg|woff2?|ttf|eot|glb|gltf|json|txt|ico|xml|pdf|zip|gz)$/i
+
+async function bakeLocalAssets(dir: string, origin: string): Promise<string[]> {
+  const baked: string[] = []
+  const seen = new Set<string>()
+  const queue: string[] = []
+  const originHost = new URL(origin).host
+  let pagesSeen = 0
+
+  // Seed from the index.html already written into the output dir (a verbatim copy
+  // of the origin page), so baking works even while the origin is unreachable.
+  const localIndex = join(dir, 'index.html')
+  let seed: string | null = null
+  try {
+    seed = await readFile(localIndex, 'utf8')
+  } catch {
+    // fall through to fetching /index.html from origin below
+  }
+  if (seed !== null) {
+    seed = rewriteOriginUrls(seed, originHost, true)
+    await writeFile(localIndex, seed)
+    baked.push('/index.html')
+    seen.add('/index.html')
+    pagesSeen = 1
+    for (const ref of extractAssetRefs(seed)) {
+      const resolved = resolveRef(ref, '/index.html', originHost)
+      if (resolved && !seen.has(resolved)) queue.push(resolved)
+    }
+    for (const ref of extractPageRefs(seed)) {
+      const resolved = resolvePageRef(ref, '/index.html', originHost)
+      if (resolved && !seen.has(resolved)) queue.push(resolved)
+    }
+  } else {
+    queue.push('/index.html')
+  }
+
+  while (queue.length && baked.length < BAKE_MAX_FILES) {
+    const path = queue.shift()!
+    const key = path.split('?')[0]
+    if (seen.has(key)) continue
+    seen.add(key)
+    let buf: Buffer
+    try {
+      const r = await fetch(new URL(path, origin).href, { redirect: 'follow', signal: AbortSignal.timeout(45000) })
+      if (!r.ok) continue
+      if (new URL(r.url).host !== originHost) continue // redirected off-origin — skip
+      const clen = Number(r.headers.get('content-length') || 0)
+      if (clen > BAKE_MAX_BYTES) continue // skip oversized files before pulling the body
+      buf = Buffer.from(await r.arrayBuffer())
+    } catch {
+      continue
+    }
+    if (buf.length > BAKE_MAX_BYTES) continue
+    const local = join(dir, key.replace(/^\/+/, ''))
+    if (!local.startsWith(dir + sep)) continue // never write outside the output dir
+    await mkdir(dirname(local), { recursive: true })
+    const isHtml = /\.html?$/i.test(key) || !extname(key)
+    const isCss = /\.css$/i.test(key)
+    let text: string | null = null
+    if ((BAKE_TEXT_EXT.test(key) || !extname(key)) && buf.length < 5_000_000) {
+      text = buf.toString('utf8')
+      const rewritten = rewriteOriginUrls(text, originHost, isCss || isHtml)
+      if (rewritten !== text) {
+        text = rewritten
+        buf = Buffer.from(text)
+      }
+    }
+    await writeFile(local, buf)
+    baked.push(key)
+    if (text !== null) {
+      for (const ref of extractAssetRefs(text)) {
+        const resolved = resolveRef(ref, key, originHost)
+        if (resolved && !seen.has(resolved)) queue.push(resolved)
+      }
+      if (isHtml && pagesSeen < BAKE_MAX_PAGES) {
+        for (const ref of extractPageRefs(text)) {
+          const resolved = resolvePageRef(ref, key, originHost)
+          if (resolved && !seen.has(resolved)) {
+            pagesSeen++
+            queue.push(resolved)
+          }
+        }
+      }
+    }
+  }
+  return baked
+}
+
+function rewriteOriginUrls(text: string, originHost: string, cssMode: boolean): string {
+  const hostEsc = originHost.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const hostRef = `(?:https?:)?//${hostEsc}`
+  const attrs = new RegExp(`(\\s(?:src|href|poster|data-src|data-href)\\s*=\\s*)(["'])${hostRef}(/[^"']*)(["'])`, 'gi')
+  const srcset = new RegExp(`(\\ssrcset\\s*=\\s*)(["'])([^"']*)(["'])`, 'gi')
+  const cssUrls = new RegExp(`(url\\(\\s*["']?|@import\\s+(?:url\\(\\s*)?["']?)${hostRef}(?=/)`, 'gi')
+  const stripHost = new RegExp(`${hostRef}(?=/)`, 'gi')
+  let out = text
+  if (cssMode) out = out.replace(cssUrls, (_m: string, pre: string) => pre)
+  out = out
+    .replace(attrs, (_m: string, pre: string, q: string, rest: string, q2: string) => `${pre}${q}${rest}${q2}`)
+    .replace(srcset, (_m: string, pre: string, q: string, val: string, q2: string) => `${pre}${q}${val.replace(stripHost, '')}${q2}`)
+  if (!cssMode) out = out.replace(cssUrls, (_m: string, pre: string) => pre)
+  return out
+}
+
+function extractPageRefs(text: string): string[] {
+  const out: string[] = []
+  const re = /\shref\s*=\s*["']([^"']+)["']/gi
+  let m: RegExpExecArray | null
+  while ((m = re.exec(text))) out.push(m[1])
+  return out
+}
+
+function resolvePageRef(ref: string, basePath: string, originHost: string): string | null {
+  const v = ref.trim()
+  if (!v || /^(#|data:|blob:|mailto:|tel:|javascript:|ftp:|\/\/)/i.test(v)) return null
+  let path: string
+  if (/^https?:\/\//i.test(v)) {
+    try {
+      if (new URL(v).host !== originHost) return null
+    } catch {
+      return null
+    }
+    path = new URL(v).pathname
+  } else if (v.startsWith('/')) {
+    path = v.split(/[?#]/)[0]
+  } else {
+    const base = basePath.split('/').slice(0, -1).join('/')
+    path = (base ? base + '/' : '/') + v.split(/[?#]/)[0]
+  }
+  if (!path || path === '/') return null
+  if (BAKE_BINARY_EXT.test(path) || /[\s,;]/.test(path)) return null
+  return path.replace(/\/+$/, '') || null
+}
+
+async function bakeRecipeMedia(dir: string, recipe: Recipe): Promise<Map<string, string>> {
+  const map = new Map<string, string>()
+  const urls = new Set<string>()
+  for (const u of recipe.images ?? []) urls.add(u)
+  for (const c of recipe.components ?? []) for (const m of c.media ?? []) urls.add(m)
+  for (const u of urls) {
+    if (!/^https?:\/\//i.test(u)) continue
+    try {
+      const r = await fetch(u, { redirect: 'follow', signal: AbortSignal.timeout(45000) })
+      if (!r.ok) continue
+      const buf = Buffer.from(await r.arrayBuffer())
+      if (!buf.length || buf.length > 25_000_000) continue
+      const clean = u.split('?')[0]
+      const ext = (/\\.(?:png|jpe?g|gif|webp|svg|avif|mp4|webm|mp3|wav|ogg|woff2?|ttf|json)$/i.exec(clean)?.[0] ?? '.bin').toLowerCase()
+      const hash = createHash('sha1').update(u).digest('hex').slice(0, 10)
+      const rel = `public/media/${hash}${ext}`
+      const p = join(dir, rel)
+      await mkdir(dirname(p), { recursive: true })
+      await writeFile(p, buf)
+      map.set(u, `/${rel}`)
+    } catch {
+      // keep the original hotlinked URL
+    }
+  }
+  return map
 }

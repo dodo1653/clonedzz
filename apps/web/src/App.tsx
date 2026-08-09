@@ -12,6 +12,7 @@ import { SectionsCard } from './components/SectionsCard'
 import { Sidebar } from './components/Sidebar'
 import { Toasts, type ToastKind } from './components/Toasts'
 import { VerifyCard } from './components/VerifyCard'
+import { WelcomePanel } from './components/WelcomePanel'
 import type {
   PreviewInfo,
   PushResult,
@@ -46,6 +47,7 @@ export default function App() {
   const [token, setToken] = useState<TokenSiteData>({ name: '', ticker: '', ca: '', x: '', blurb: '' })
   const [tokenMode, setTokenMode] = useState(false)
   const [removeGates, setRemoveGates] = useState(false)
+  const [bakeAssets, setBakeAssets] = useState(false)
   const [phase, setPhase] = useState<Phase>('idle')
   const [recipe, setRecipe] = useState<Recipe | null>(null)
   const [sessionId, setSessionId] = useState('')
@@ -233,6 +235,7 @@ export default function App() {
         token: tokenMode && token.ca ? token : null,
         install: true,
         removeGates,
+        bakeAssets,
       })
       setGen({ dir: res.dir, files: res.files })
       setPhase('generated')
@@ -342,6 +345,7 @@ export default function App() {
     setUrl('')
     setTokenMode(false)
     setRemoveGates(false)
+    setBakeAssets(false)
     setPhase('idle')
     setRecipe(null)
     setSessionId('')
@@ -424,6 +428,7 @@ export default function App() {
       />
 
       <main className="main">
+        {phase === 'idle' && sessions.length === 0 && <WelcomePanel onPickUrl={setUrl} />}
         <CloneCard
           url={url}
           onUrl={setUrl}
@@ -451,6 +456,8 @@ export default function App() {
               onRecipeName={setRecipeName}
               removeGates={removeGates}
               onRemoveGates={setRemoveGates}
+              bakeAssets={bakeAssets}
+              onBakeAssets={setBakeAssets}
               onGenerate={() => generate(null)}
               onSaveTheme={saveTheme}
               generating={phase === 'generating'}

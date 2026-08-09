@@ -245,6 +245,8 @@ export interface GenerateOptions {
   token?: TokenSiteData | null
   hotlinkMedia?: boolean
   removeGates?: boolean
+  /** Download every referenced asset (css/js/images/subpages) locally so the replica is self-contained. */
+  bakeAssets?: boolean
 }
 
 export interface GenerateResult {

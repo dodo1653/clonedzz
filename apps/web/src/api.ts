@@ -50,7 +50,7 @@ async function patch<T>(path: string, body: unknown): Promise<T> {
 
 export const api = {
   analyze: (url: string, name?: string) => post<AnalyzeResponse>('/api/analyze', { url, name }),
-  generate: (body: { sessionId?: string; recipe?: Recipe; name: string; token?: TokenSiteData | null; install?: boolean; removeGates?: boolean }) =>
+  generate: (body: { sessionId?: string; recipe?: Recipe; name: string; token?: TokenSiteData | null; install?: boolean; removeGates?: boolean; bakeAssets?: boolean }) =>
     post<GenerateResult>('/api/generate', body),
   verify: (sourceUrl: string, replicaDir: string) => post<VerifyReport>('/api/verify', { sourceUrl, replicaDir }),
   push: (body: { dir: string; repo: string; branch?: string; token?: string; message?: string }) => post<PushResult>('/api/push', body),
