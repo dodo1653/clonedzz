@@ -12,7 +12,7 @@ import { SectionsCard } from './components/SectionsCard'
 import { Sidebar } from './components/Sidebar'
 import { Toasts, type ToastKind } from './components/Toasts'
 import { VerifyCard } from './components/VerifyCard'
-import { WelcomePanel } from './components/WelcomePanel'
+import { Hero } from './components/Hero'
 import type {
   PreviewInfo,
   PushResult,
@@ -428,18 +428,31 @@ export default function App() {
       />
 
       <main className="main">
-        {phase === 'idle' && sessions.length === 0 && <WelcomePanel onPickUrl={setUrl} />}
-        <CloneCard
-          url={url}
-          onUrl={setUrl}
-          token={token}
-          onToken={setToken}
-          tokenMode={tokenMode}
-          onTokenMode={setTokenMode}
-          onAnalyze={analyze}
-          analyzing={phase === 'analyzing'}
-          hasRecipe={Boolean(recipe)}
-        />
+        {!recipe ? (
+          <Hero
+            url={url}
+            onUrl={setUrl}
+            token={token}
+            onToken={setToken}
+            tokenMode={tokenMode}
+            onTokenMode={setTokenMode}
+            onAnalyze={analyze}
+            analyzing={phase === 'analyzing'}
+            onPickUrl={setUrl}
+          />
+        ) : (
+          <CloneCard
+            url={url}
+            onUrl={setUrl}
+            token={token}
+            onToken={setToken}
+            tokenMode={tokenMode}
+            onTokenMode={setTokenMode}
+            onAnalyze={analyze}
+            analyzing={phase === 'analyzing'}
+            hasRecipe
+          />
+        )}
 
         {phase === 'analyzing' && (
           <div className="loading">
