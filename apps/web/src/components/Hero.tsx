@@ -38,7 +38,6 @@ export function Hero({
         <span className="chip-float c1">analyse</span>
         <span className="chip-float c2">generate</span>
         <span className="chip-float c3">BUY ↗</span>
-        <span className="chip-float c4">download all</span>
         <span className="chip-float c5">X</span>
         <span className="chip-float c6">CA</span>
       </div>
