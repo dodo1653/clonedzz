@@ -35,12 +35,12 @@ export function Hero({
       <div className="hero-ring hero-ring-b" aria-hidden="true" />
 
       <div className="hero-chips" aria-hidden="true">
-        <span className="chip-float c1">$PUMP</span>
-        <span className="chip-float c2">0x8f3c…b3a2</span>
-        <span className="chip-float c3">BUY ↗</span>
-        <span className="chip-float c4">$WIF</span>
-        <span className="chip-float c5">X</span>
-        <span className="chip-float c6">CA</span>
+        <span className="chip-float c1">analyse</span>
+        <span className="chip-float c2">generate</span>
+        <span className="chip-float c3">token factory</span>
+        <span className="chip-float c4">download all</span>
+        <span className="chip-float c5">verify</span>
+        <span className="chip-float c6">push</span>
       </div>
 
       <div className="hero-inner">
