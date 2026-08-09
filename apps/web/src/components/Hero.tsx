@@ -1,20 +1,11 @@
 import type { TokenSiteData } from '../types'
 
-const SAMPLES = [
-  { label: 'pump.fun', url: 'https://pump.fun' },
-  { label: 'stripe.com', url: 'https://stripe.com' },
-  { label: 'linear.app', url: 'https://linear.app' },
-  { label: 'notion.so', url: 'https://www.notion.so' },
-]
-
 const STEPS = [
   { n: '01', t: 'analyse', d: 'headless chromium maps layout, fonts, colors and contract addresses' },
   { n: '02', t: 'review', d: 'inspect the recipe and fine-tune the token before generating' },
   { n: '03', t: 'generate', d: 'a runnable vite + react project — or bake everything locally' },
   { n: '04', t: 'preview & push', d: 'verify fidelity, then push it to your own github' },
 ]
-
-const MARQUEE = ['$PUMP', '$WIF', '$BONK', '$POPCAT', '$GIGA', '$MOG', '$TRUMP', 'CA · 0x8f3c…b3a2', 'BUY ↗', 'X · community', 'dev · clonedzz']
 
 export function Hero({
   url,
@@ -25,7 +16,7 @@ export function Hero({
   onTokenMode,
   onAnalyze,
   analyzing,
-  onPickUrl,
+  recent,
 }: {
   url: string
   onUrl: (v: string) => void
@@ -35,7 +26,7 @@ export function Hero({
   onTokenMode: (v: boolean) => void
   onAnalyze: () => void
   analyzing: boolean
-  onPickUrl: (u: string) => void
+  recent: { label: string; url: string }[]
 }) {
   return (
     <section className="hero">
@@ -140,22 +131,16 @@ export function Hero({
           ))}
         </div>
 
-        <div className="welcome-samples hero-samples">
-          <span className="welcome-samples-lbl">or try a sample:</span>
-          {SAMPLES.map((s) => (
-            <button key={s.url} className="sample-chip" onClick={() => onPickUrl(s.url)}>
-              {s.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="hero-marquee" aria-hidden="true">
-        <div className="hero-marquee-track">
-          {[...MARQUEE, ...MARQUEE].map((t, i) => (
-            <span key={i}>{t}</span>
-          ))}
-        </div>
+        {recent.length > 0 && (
+          <div className="welcome-samples hero-samples">
+            <span className="welcome-samples-lbl">recent clones:</span>
+            {recent.map((s) => (
+              <button key={s.url} className="sample-chip" onClick={() => onUrl(s.url)}>
+                {s.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   )

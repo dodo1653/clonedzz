@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { api } from './api'
 import { CloneCard } from './components/CloneCard'
 import { GenerateCard } from './components/GenerateCard'
@@ -59,6 +59,25 @@ export default function App() {
   const [sessions, setSessions] = useState<SessionItem[]>([])
   const [tokens, setTokens] = useState<TokenPreset[]>([])
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+
+  // Recent cloned websites for the hero chips — most recent first, one per host.
+  const recent = useMemo(() => {
+    const seen = new Set<string>()
+    const out: { label: string; url: string }[] = []
+    const sorted = [...sessions].sort((a, b) => (b.meta.createdAt || '').localeCompare(a.meta.createdAt || ''))
+    for (const s of sorted) {
+      try {
+        const host = new URL(s.meta.sourceUrl).host.replace(/^www\./, '')
+        if (seen.has(host)) continue
+        seen.add(host)
+        out.push({ label: host, url: s.meta.sourceUrl })
+        if (out.length >= 6) break
+      } catch {
+        // skip malformed source urls
+      }
+    }
+    return out
+  }, [sessions])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
   const [pushRepo, setPushRepo] = useState('')
@@ -438,7 +457,7 @@ export default function App() {
             onTokenMode={setTokenMode}
             onAnalyze={analyze}
             analyzing={phase === 'analyzing'}
-            onPickUrl={setUrl}
+            recent={recent}
           />
         ) : (
           <CloneCard
