@@ -63,11 +63,8 @@ export function Hero({
 
         <div className="hero-cta-row">
           <div className="url-input-wrap hero-url">
-            <span className="url-mark" aria-hidden="true">
-              ⌁
-            </span>
             <input
-              placeholder="https://pump.fun/coin/…"
+              placeholder="paste any site"
               value={url}
               onChange={(e) => onUrl(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && onAnalyze()}
