@@ -34,13 +34,6 @@ export function Hero({
       <div className="hero-ring hero-ring-a" aria-hidden="true" />
       <div className="hero-ring hero-ring-b" aria-hidden="true" />
 
-      <div className="hero-chips" aria-hidden="true">
-        <span className="chip-float c1">analyse</span>
-        <span className="chip-float c2">generate</span>
-        <span className="chip-float c3">BUY ↗</span>
-        <span className="chip-float c5">X</span>
-        <span className="chip-float c6">CA</span>
-      </div>
 
       <div className="hero-inner">
         <div className="launch-kicker hero-kicker">
