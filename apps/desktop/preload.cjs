@@ -9,4 +9,10 @@ contextBridge.exposeInMainWorld('desktop', {
     ipcRenderer.on('window:maximized', listener)
     return () => ipcRenderer.removeListener('window:maximized', listener)
   },
+  onUpdateStatus: (cb) => {
+    const listener = (_event, status) => cb(status)
+    ipcRenderer.on('update:status', listener)
+    return () => ipcRenderer.removeListener('update:status', listener)
+  },
+  quitAndInstall: () => ipcRenderer.send('update:quit-and-install'),
 })

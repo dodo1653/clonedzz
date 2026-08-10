@@ -1,7 +1,7 @@
 {
   "name": "@clonedzz/desktop",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "clonedzz — replicate any website into a runnable React project",
   "author": "clonedzz",
   "main": "main.cjs",
@@ -67,8 +67,20 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "shortcutName": "clonedzz"
+      "shortcutName": "clonedzz",
+      "artifactName": "clonedzz-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "clonedzz-${version}.${ext}"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "dodo1653",
+      "repo": "curseforge"
     }
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
   },
   "devDependencies": {
     "electron": "33.4.11",

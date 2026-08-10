@@ -11,6 +11,7 @@ import { RecipeCard } from './components/RecipeCard'
 import { SectionsCard } from './components/SectionsCard'
 import { Sidebar } from './components/Sidebar'
 import { Toasts, type ToastKind } from './components/Toasts'
+import { UpdateBanner } from './components/UpdateBanner'
 import { VerifyCard } from './components/VerifyCard'
 import { Hero } from './components/Hero'
 import type {
@@ -59,6 +60,12 @@ export default function App() {
   const [sessions, setSessions] = useState<SessionItem[]>([])
   const [tokens, setTokens] = useState<TokenPreset[]>([])
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+  const [update, setUpdate] = useState<UpdateStatus | null>(null)
+
+  useEffect(() => {
+    if (!window.desktop?.onUpdateStatus) return
+    return window.desktop.onUpdateStatus(setUpdate)
+  }, [])
 
   // Recent cloned websites for the hero chips — most recent first, one per host.
   const recent = useMemo(() => {
@@ -556,6 +563,10 @@ export default function App() {
       </main>
 
       <Toasts toasts={toasts} onDismiss={(id) => setToasts((t) => t.filter((x) => x.id !== id))} />
+
+      {update && (update.state === 'downloading' || update.state === 'downloaded' || update.state === 'error' || update.state === 'available') && (
+        <UpdateBanner status={update} onInstall={() => window.desktop?.quitAndInstall()} />
+      )}
     </div>
   )
 }

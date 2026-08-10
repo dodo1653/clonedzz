@@ -1,6 +1,7 @@
 const { app, BrowserWindow, shell, ipcMain } = require('electron')
 const { spawn, spawnSync } = require('node:child_process')
 const { join } = require('node:path')
+const { autoUpdater } = require('electron-updater')
 
 const isPackaged = app.isPackaged
 const RES = isPackaged ? process.resourcesPath : join(__dirname, '..', '..')
@@ -100,6 +101,37 @@ if (!app.requestSingleInstanceLock()) {
     BrowserWindow.fromWebContents(e.sender)?.close()
   })
 
+  // --- auto-update ---
+  // Checks GitHub releases (publish config in package.json) on startup, auto-downloads
+  // the update in the background and signals the renderer to offer a restart.
+  let updateWin = null
+  function setupAutoUpdater(win) {
+    updateWin = win
+    if (!app.isPackaged) return
+    autoUpdater.autoDownload = true
+    autoUpdater.autoInstallOnAppQuit = true
+    const send = (status) => {
+      if (updateWin && !updateWin.isDestroyed()) updateWin.webContents.send('update:status', status)
+    }
+    autoUpdater.on('update-available', (info) => send({ state: 'available', version: info.version }))
+    autoUpdater.on('update-not-available', () => send({ state: 'up-to-date' }))
+    autoUpdater.on('download-progress', (p) => send({ state: 'downloading', percent: Math.round(p.percent) }))
+    autoUpdater.on('update-downloaded', (info) => send({ state: 'downloaded', version: info.version }))
+    autoUpdater.on('error', (err) => send({ state: 'error', message: String(err && err.message ? err.message : err) }))
+    ipcMain.on('update:quit-and-install', () => {
+      try {
+        autoUpdater.quitAndInstall()
+      } catch (e) {
+        console.error('[updater] quitAndInstall failed', e)
+      }
+    })
+    // Wait until the window is up before checking — checkForUpdates() can be slow on
+    // first launch and we don't want to delay first paint.
+    win.webContents.once('did-finish-load', () => {
+      setTimeout(() => autoUpdater.checkForUpdates().catch((e) => console.error('[updater] check failed', e)), 6000)
+    })
+  }
+
   async function createWindow() {
     await ensureServer()
     const win = new BrowserWindow({
@@ -132,6 +164,7 @@ if (!app.requestSingleInstanceLock()) {
       }
     })
     await win.loadURL(URL)
+    setupAutoUpdater(win)
   }
 
   app.whenReady()
