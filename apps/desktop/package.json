@@ -1,7 +1,7 @@
 {
   "name": "@clonedzz/desktop",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "clonedzz — replicate any website into a runnable React project",
   "author": "clonedzz",
   "main": "main.cjs",
