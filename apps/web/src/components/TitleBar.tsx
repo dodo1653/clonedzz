@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import type { Theme } from '../types'
+import { nextTheme } from '../types'
 
 function MinimizeIcon() {
   return (
@@ -33,12 +35,20 @@ function CloseIcon() {
   )
 }
 
+function MenuIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <path d="M2.5 4h9M2.5 7h9M2.5 10h9" stroke="currentColor" strokeWidth="1.15" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 /**
  * App chrome title bar. Always rendered (browser + Electron) so the desktop
  * frame and the web dashboard share one identity header. Window actions go
  * through `window.desktop` (exposed by preload.cjs) and no-op in a browser.
  */
-export default function TitleBar() {
+export default function TitleBar({ sidebarOpen, onToggleSidebar, theme, onToggleTheme }: { sidebarOpen: boolean; onToggleSidebar: () => void; theme: Theme; onToggleTheme: () => void }) {
   const [maximized, setMaximized] = useState(false)
   const desktop = window.desktop
 
@@ -48,9 +58,34 @@ export default function TitleBar() {
     return off
   }, [desktop])
 
+  const themeIcon = theme === 'dark' ? '☾' : theme === 'light' ? '☼' : theme === 'dim' ? '◐' : theme === 'ocean' ? '◈' : theme === 'ember' ? '◉' : theme === 'violet' ? '◇' : '◎'
+  const themeLabel = theme === 'dark' ? 'dark' : theme === 'light' ? 'light' : theme === 'dim' ? 'dim' : theme === 'ocean' ? 'ocean' : theme === 'ember' ? 'ember' : theme === 'violet' ? 'violet' : 'rose'
+
   return (
     <header className="titlebar" onDoubleClick={() => desktop?.toggleMaximize()}>
-      <div className="titlebar-left" aria-hidden="true" />
+      <div className="titlebar-left">
+        {!sidebarOpen && (
+          <button
+            type="button"
+            className="tb-btn sidebar-hamburger"
+            onClick={onToggleSidebar}
+            aria-label="Open sidebar"
+            title="Open sidebar"
+          >
+            <MenuIcon />
+          </button>
+        )}
+        <button
+          type="button"
+          className="tb-btn theme-btn"
+          onClick={onToggleTheme}
+          aria-label={`Switch to ${nextTheme(theme)} theme`}
+          title={`switch to ${nextTheme(theme)} theme`}
+        >
+          <span className="tb-theme-icon">{themeIcon}</span>
+          <span className="tb-theme-label">{themeLabel}</span>
+        </button>
+      </div>
 
       <div className="titlebar-brand">
         clone<em>dzz</em>

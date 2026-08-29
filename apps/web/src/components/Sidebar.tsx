@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
-import type { PreviewStatus, SessionItem, Theme, ThemeItem, TokenPreset } from '../types'
-import { nextTheme } from '../types'
+import type { PreviewStatus, SessionItem, ThemeItem, TokenPreset } from '../types'
 
 function hostOf(u: string): string {
   try {
@@ -173,8 +172,6 @@ export function Sidebar({
   onDeleteSession,
   onLoadTheme,
   onApplyToken,
-  theme,
-  onToggleTheme,
   onHome,
   devMap,
   onRunDev,
@@ -198,8 +195,6 @@ export function Sidebar({
   onDeleteSession: (id: string) => void
   onLoadTheme: (t: ThemeItem) => void
   onApplyToken: (t: TokenPreset) => void
-  theme: Theme
-  onToggleTheme: () => void
   onHome: () => void
   devMap: Record<string, PreviewStatus>
   onRunDev: (dir: string) => void
@@ -209,16 +204,6 @@ export function Sidebar({
 }) {
   return (
     <>
-      <button
-        className={`sidebar-toggle ${open ? 'open' : ''}`}
-        onClick={onToggleOpen}
-        title={open ? 'Collapse sidebar' : 'Expand sidebar'}
-        aria-label={open ? 'Collapse sidebar' : 'Expand sidebar'}
-      >
-        <svg width="6" height="10" viewBox="0 0 6 10" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
-          {open ? <polyline points="4.5,1 1.5,5 4.5,9" /> : <polyline points="1.5,1 4.5,5 1.5,9" />}
-        </svg>
-      </button>
       <aside className={`sidebar ${open ? '' : 'collapsed'}`} data-lenis-prevent>
       <div className="brand">
         <div className="brand-topline brand-home" onClick={onHome} role="button" tabIndex={0} title="Return home" onKeyDown={(e) => e.key === 'Enter' && onHome()}>
@@ -228,19 +213,18 @@ export function Sidebar({
           <span className="brand-orbit" aria-hidden="true" />
         </div>
         <div className="brand-sub">replicate · runnable Vite+React</div>
-        <button
-          className="theme-toggle"
-          onClick={onToggleTheme}
-          aria-label={`Switch to ${nextTheme(theme)} theme`}
-          title={`switch to ${nextTheme(theme)} theme`}
-        >
-          <span className="theme-spark" aria-hidden="true">
-            {theme === 'dark' ? '☾' : theme === 'light' ? '☼' : theme === 'dim' ? '◐' : theme === 'ocean' ? '◈' : theme === 'ember' ? '◉' : theme === 'violet' ? '◇' : '◎'}
-          </span>
-          <span>
-            {theme === 'dark' ? 'dark room' : theme === 'light' ? 'light room' : theme === 'dim' ? 'dim light' : theme === 'ocean' ? 'ocean deep' : theme === 'ember' ? 'ember glow' : theme === 'violet' ? 'violet haze' : 'rose garden'}
-          </span>
-        </button>
+        <div className="brand-actions">
+          <button
+            className="sidebar-close"
+            onClick={onToggleOpen}
+            title="Collapse sidebar"
+            aria-label="Collapse sidebar"
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
+              <path d="M2 2l6 6M8 2l-6 6" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       <SideSection

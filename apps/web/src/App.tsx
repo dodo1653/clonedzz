@@ -450,7 +450,7 @@ export default function App() {
 
   return (
     <div className={`app has-titlebar ${sidebarOpen ? '' : 'sidebar-collapsed'}`}>
-      <TitleBar />
+      <TitleBar sidebarOpen={sidebarOpen} onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} theme={theme} onToggleTheme={() => setTheme(nextTheme)} />
       {!reduceMotion && (
         <AcidSquares
           className="acid-bg"
@@ -496,8 +496,6 @@ export default function App() {
         onDeleteSession={deleteSession}
         onLoadTheme={loadTheme}
         onApplyToken={applyToken}
-        theme={theme}
-        onToggleTheme={() => setTheme(nextTheme)}
         onHome={goHome}
         devMap={devMap}
         onRunDev={devRun}
