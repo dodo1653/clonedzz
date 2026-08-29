@@ -111,15 +111,16 @@ export default function App() {
   const [toasts, setToasts] = useState<{ id: number; kind: ToastKind; text: string }[]>([])
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem('clonedzz-theme')
-    return saved === 'light' || saved === 'dim' ? saved : 'dark'
+    const all: Theme[] = ['dark', 'light', 'dim', 'ocean', 'ember', 'violet', 'rose']
+    return all.includes(saved as Theme) ? (saved as Theme) : 'dark'
   })
   const firstThemeRun = useRef(true)
 
   useLayoutEffect(() => {
     const root = document.documentElement
+    const allThemes: Theme[] = ['light', 'dim', 'ocean', 'ember', 'violet', 'rose']
     const apply = () => {
-      root.classList.toggle('light', theme === 'light')
-      root.classList.toggle('dim', theme === 'dim')
+      for (const t of allThemes) root.classList.toggle(t, theme === t)
       localStorage.setItem('clonedzz-theme', theme)
     }
     // The switch-guard disables per-element CSS transitions while the theme

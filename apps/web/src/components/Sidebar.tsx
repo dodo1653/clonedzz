@@ -215,7 +215,9 @@ export function Sidebar({
         title={open ? 'Collapse sidebar' : 'Expand sidebar'}
         aria-label={open ? 'Collapse sidebar' : 'Expand sidebar'}
       >
-        {open ? '‹' : '›'}
+        <svg width="6" height="10" viewBox="0 0 6 10" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+          {open ? <polyline points="4.5,1 1.5,5 4.5,9" /> : <polyline points="1.5,1 4.5,5 1.5,9" />}
+        </svg>
       </button>
       <aside className={`sidebar ${open ? '' : 'collapsed'}`} data-lenis-prevent>
       <div className="brand">
@@ -232,8 +234,12 @@ export function Sidebar({
           aria-label={`Switch to ${nextTheme(theme)} theme`}
           title={`switch to ${nextTheme(theme)} theme`}
         >
-          <span className="theme-spark" aria-hidden="true">{theme === 'dark' ? '☾' : theme === 'light' ? '☼' : '◐'}</span>
-          <span>{theme === 'dark' ? 'dark room' : theme === 'light' ? 'light room' : 'dim light'}</span>
+          <span className="theme-spark" aria-hidden="true">
+            {theme === 'dark' ? '☾' : theme === 'light' ? '☼' : theme === 'dim' ? '◐' : theme === 'ocean' ? '◈' : theme === 'ember' ? '◉' : theme === 'violet' ? '◇' : '◎'}
+          </span>
+          <span>
+            {theme === 'dark' ? 'dark room' : theme === 'light' ? 'light room' : theme === 'dim' ? 'dim light' : theme === 'ocean' ? 'ocean deep' : theme === 'ember' ? 'ember glow' : theme === 'violet' ? 'violet haze' : 'rose garden'}
+          </span>
         </button>
       </div>
 

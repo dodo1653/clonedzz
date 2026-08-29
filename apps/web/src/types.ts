@@ -1,6 +1,6 @@
-export type Theme = 'dark' | 'light' | 'dim'
+export type Theme = 'dark' | 'light' | 'dim' | 'ocean' | 'ember' | 'violet' | 'rose'
 
-export const THEME_ORDER: Theme[] = ['dark', 'light', 'dim']
+export const THEME_ORDER: Theme[] = ['dark', 'light', 'dim', 'ocean', 'ember', 'violet', 'rose']
 
 export function nextTheme(t: Theme): Theme {
   return THEME_ORDER[(THEME_ORDER.indexOf(t) + 1) % THEME_ORDER.length]
