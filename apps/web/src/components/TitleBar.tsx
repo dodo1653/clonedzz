@@ -58,9 +58,6 @@ export default function TitleBar({ sidebarOpen, onToggleSidebar, theme, onToggle
     return off
   }, [desktop])
 
-  const themeIcon = theme === 'dark' ? '☾' : theme === 'light' ? '☼' : theme === 'dim' ? '◐' : theme === 'ocean' ? '◈' : theme === 'ember' ? '◉' : theme === 'violet' ? '◇' : '◎'
-  const themeLabel = theme === 'dark' ? 'dark' : theme === 'light' ? 'light' : theme === 'dim' ? 'dim' : theme === 'ocean' ? 'ocean' : theme === 'ember' ? 'ember' : theme === 'violet' ? 'violet' : 'rose'
-
   return (
     <header className="titlebar" onDoubleClick={() => desktop?.toggleMaximize()}>
       <div className="titlebar-left">
@@ -75,19 +72,9 @@ export default function TitleBar({ sidebarOpen, onToggleSidebar, theme, onToggle
             <MenuIcon />
           </button>
         )}
-        <button
-          type="button"
-          className="theme-btn"
-          onClick={onToggleTheme}
-          aria-label={`Switch to ${nextTheme(theme)} theme`}
-          title={`switch to ${nextTheme(theme)} theme`}
-        >
-          <span className="tb-theme-icon">{themeIcon}</span>
-          <span className="tb-theme-label">{themeLabel}</span>
-        </button>
       </div>
 
-      <div className="titlebar-brand">
+      <div className="titlebar-brand theme-btn" onClick={onToggleTheme} role="button" tabIndex={0} title={`switch to ${nextTheme(theme)} theme`} onKeyDown={(e) => e.key === 'Enter' && onToggleTheme()}>
         clone<em>dzz</em>
       </div>
 

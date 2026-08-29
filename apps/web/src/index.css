@@ -378,19 +378,9 @@ html.lenis, html.lenis body { height: auto; }
 .sidebar-hamburger svg { transition: transform .22s cubic-bezier(.16,1,.3,1); }
 .sidebar-hamburger:hover svg { transform: scale(1.1); }
 
-/* Titlebar theme button */
-.theme-btn {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 4px 10px; border: 0; border-radius: 7px;
-  background: transparent; color: var(--faint);
-  cursor: pointer; font-family: var(--mono); font-size: 9px;
-  transition: color .15s ease, background .15s ease;
-}
-.theme-btn:hover { color: var(--text); background: rgba(255,255,255,.06); }
-.theme-btn:active { transform: scale(.95); }
-.tb-theme-icon { font-size: 13px; line-height: 1; }
-.tb-theme-label { letter-spacing: .06em; text-transform: uppercase; }
-.theme-btn:hover .tb-theme-label { color: var(--accent); }
+/* Titlebar brand text — click to cycle themes */
+.titlebar-brand.theme-btn { cursor: pointer; transition: opacity .15s ease; -webkit-app-region: no-drag; }
+.titlebar-brand.theme-btn:hover { opacity: .75; }
 
 /* Main content when sidebar is collapsed */
 .sidebar-collapsed .main {
