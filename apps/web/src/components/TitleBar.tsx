@@ -67,7 +67,7 @@ export default function TitleBar({ sidebarOpen, onToggleSidebar, theme, onToggle
         {!sidebarOpen && (
           <button
             type="button"
-            className="tb-btn sidebar-hamburger"
+            className="sidebar-hamburger"
             onClick={onToggleSidebar}
             aria-label="Open sidebar"
             title="Open sidebar"
@@ -77,7 +77,7 @@ export default function TitleBar({ sidebarOpen, onToggleSidebar, theme, onToggle
         )}
         <button
           type="button"
-          className="tb-btn theme-btn"
+          className="theme-btn"
           onClick={onToggleTheme}
           aria-label={`Switch to ${nextTheme(theme)} theme`}
           title={`switch to ${nextTheme(theme)} theme`}
