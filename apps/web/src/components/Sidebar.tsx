@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { SessionItem, Theme, ThemeItem, TokenPreset } from '../types'
+import type { PreviewStatus, SessionItem, Theme, ThemeItem, TokenPreset } from '../types'
 import { nextTheme } from '../types'
 
 function hostOf(u: string): string {
@@ -61,6 +61,9 @@ function SessionRow({
   onSave,
   onCancel,
   onDelete,
+  dev,
+  onDev,
+  onDevStop,
 }: {
   item: SessionItem
   active: boolean
@@ -72,6 +75,9 @@ function SessionRow({
   onSave: () => void
   onCancel: () => void
   onDelete: () => void
+  dev?: PreviewStatus
+  onDev: () => void
+  onDevStop: () => void
 }) {
   const name = item.meta.name || item.summary.name
   if (editing) {
@@ -105,9 +111,26 @@ function SessionRow({
         <div className="nm">{name}</div>
         <div className="sub">
           {hostOf(item.meta.sourceUrl)} · {when(item.meta.createdAt)}
+          {dev && (
+            <span className="dev-dot">
+              {' '}· {dev.port} {dev.static ? 'static' : 'vite'}
+            </span>
+          )}
         </div>
       </div>
       <div className="item-actions">
+        {item.meta.outputDir && (
+          <button
+            className={`icon-btn dev ${dev ? 'on' : ''}`}
+            title={dev ? `stop dev server (${dev.port})` : `run dev server: ${item.meta.outputDir.split(/[\\/]/).pop()}`}
+            onClick={(e) => {
+              e.stopPropagation()
+              dev ? onDevStop() : onDev()
+            }}
+          >
+            {dev ? '■' : '▶'}
+          </button>
+        )}
         <button
           className="icon-btn"
           onClick={(e) => {
@@ -153,6 +176,11 @@ export function Sidebar({
   theme,
   onToggleTheme,
   onHome,
+  devMap,
+  onRunDev,
+  onStopDev,
+  open,
+  onToggleOpen,
 }: {
   sessions: SessionItem[]
   themes: ThemeItem[]
@@ -173,9 +201,23 @@ export function Sidebar({
   theme: Theme
   onToggleTheme: () => void
   onHome: () => void
+  devMap: Record<string, PreviewStatus>
+  onRunDev: (dir: string) => void
+  onStopDev: (dir: string) => void
+  open: boolean
+  onToggleOpen: () => void
 }) {
   return (
-    <aside className="sidebar" data-lenis-prevent>
+    <>
+      <button
+        className={`sidebar-toggle ${open ? 'open' : ''}`}
+        onClick={onToggleOpen}
+        title={open ? 'Collapse sidebar' : 'Expand sidebar'}
+        aria-label={open ? 'Collapse sidebar' : 'Expand sidebar'}
+      >
+        {open ? '‹' : '›'}
+      </button>
+      <aside className={`sidebar ${open ? '' : 'collapsed'}`} data-lenis-prevent>
       <div className="brand">
         <div className="brand-topline brand-home" onClick={onHome} role="button" tabIndex={0} title="Return home" onKeyDown={(e) => e.key === 'Enter' && onHome()}>
           <div className="brand-line">
@@ -215,6 +257,9 @@ export function Sidebar({
             onSave={onSaveRename}
             onCancel={onCancelRename}
             onDelete={() => onDeleteSession(s.id)}
+            dev={devMap[s.meta.outputDir ?? '']}
+            onDev={() => s.meta.outputDir && onRunDev(s.meta.outputDir)}
+            onDevStop={() => s.meta.outputDir && onStopDev(s.meta.outputDir)}
           />
         ))}
       </SideSection>
@@ -254,6 +299,7 @@ export function Sidebar({
           </div>
         ))}
       </SideSection>
-    </aside>
+      </aside>
+    </>
   )
 }

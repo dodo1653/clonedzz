@@ -88,6 +88,15 @@ export interface VerifyReport {
 export interface PreviewInfo {
   url: string
   port: number
+  static?: boolean
+  reused?: boolean
+}
+
+export interface PreviewStatus {
+  port: number
+  dir: string
+  url: string
+  static: boolean
 }
 
 export interface ThemeItem {
@@ -102,7 +111,7 @@ export interface TokenPreset {
 
 export interface SessionItem {
   id: string
-  meta: { sourceUrl: string; createdAt: string; name?: string }
+  meta: { sourceUrl: string; createdAt: string; name?: string; outputDir?: string | null }
   summary: { name: string; title: string; background: string; fonts: Fonts; components: { type: string; headline?: string }[] }
 }
 
@@ -112,6 +121,8 @@ export interface OutputItem {
   installed: boolean
   path: string
   sourceUrl: string | null
+  baked: boolean
+  static: boolean
 }
 
 export interface PushResult {

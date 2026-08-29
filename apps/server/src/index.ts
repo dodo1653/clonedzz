@@ -1,7 +1,7 @@
 import { join, dirname, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { mkdirSync, readdirSync, readFileSync, writeFileSync, rmSync, existsSync } from 'node:fs'
-import { spawn } from 'node:child_process'
+import { spawn, exec } from 'node:child_process'
 import express from 'express'
 import cors from 'cors'
 import { analyzeUrl, generateProject, verifyReplica, type Recipe, type TokenSiteData } from '@clonedzz/engine'
@@ -58,20 +58,36 @@ app.post('/api/generate', async (req, res) => {
       res.status(400).json({ error: 'recipe or sessionId required' })
       return
     }
+    const baked = body.bakeAssets === true
     const result = await generateProject({
       targetDir: OUTPUTS_DIR,
       name: body.name || recipe.name,
       recipe,
       token: body.token ?? null,
       removeGates: body.removeGates === true,
-      bakeAssets: body.bakeAssets === true,
+      bakeAssets: baked,
     })
     writeFileSync(
       join(result.dir, '.clonedzz.json'),
-      JSON.stringify({ sourceUrl: recipe.sourceUrl, title: recipe.title, name: recipe.name, createdAt: new Date().toISOString() }, null, 2),
+      JSON.stringify({ sourceUrl: recipe.sourceUrl, title: recipe.title, name: recipe.name, createdAt: new Date().toISOString(), baked }, null, 2),
     )
     if (body.install !== false && !existsSync(join(result.dir, 'static.json'))) {
       await run('npm', ['install', '--no-audit', '--no-fund'], result.dir)
+    }
+    if (body.sessionId) {
+      const metaFile = join(SESSIONS_DIR, body.sessionId, 'meta.json')
+      if (existsSync(metaFile)) {
+        try {
+          const meta = JSON.parse(readFileSync(metaFile, 'utf8'))
+          meta.outputDir = result.dir
+          meta.baked = baked
+          meta.removeGates = body.removeGates === true
+          meta.generatedAt = new Date().toISOString()
+          writeFileSync(metaFile, JSON.stringify(meta, null, 2))
+        } catch {
+          // keep session meta untouched
+        }
+      }
     }
     res.json({ ...result, installStarted: body.install !== false })
   } catch (e) {
@@ -96,44 +112,93 @@ app.post('/api/verify', async (req, res) => {
   }
 })
 
-// --- preview (vite dev server lifecycle) ---
-const previews = new Map<number, ReturnType<typeof spawn>>()
+// --- preview (dev server lifecycle) ---
+// Ports are derived deterministically from the output dir so a dev server started
+// for a clone survives app restarts: the same port is reused, and if the (detached)
+// child is still alive we adopt it instead of spawning a duplicate.
+interface PreviewEntry {
+  dir: string
+  child: ReturnType<typeof spawn> | { pid: -1 }
+  static: boolean
+}
+const previews = new Map<number, PreviewEntry>()
+function previewAlive(child: PreviewEntry['child']): boolean {
+  if ('exitCode' in child) return !child.exitCode && !child.signalCode
+  return true
+}
+function devPort(dir: string, base: number, span: number): number {
+  let h = 0
+  for (const ch of dir) h = (h * 31 + ch.charCodeAt(0)) >>> 0
+  return base + (h % span)
+}
+async function probePort(port: number): Promise<boolean> {
+  try {
+    const r = await fetch(`http://127.0.0.1:${port}/`, { signal: AbortSignal.timeout(800) })
+    return r.status < 500
+  } catch {
+    return false
+  }
+}
 app.post('/api/preview', async (req, res) => {
   try {
     const { dir } = req.body as { dir: string }
-    if (existsSync(join(dir, 'static.json'))) {
-      const preview = await startStatic(dir)
-      if (!preview.port || !preview.child) throw new Error('static preview server failed to start')
-      previews.set(preview.port, preview.child)
-      res.json({ url: `http://localhost:${preview.port}`, port: preview.port, static: true })
+    const staticMode = existsSync(join(dir, 'static.json'))
+    const port = staticMode ? devPort(dir, 5690, 300) : devPort(dir, 5290, 400)
+    const existing = previews.get(port)
+    if (existing && previewAlive(existing.child)) {
+      res.json({ url: `http://localhost:${port}`, port, static: existing.static, reused: true })
       return
     }
-    if (!existsSync(join(dir, 'node_modules', 'vite'))) {
-      await run('npm', ['install', '--no-audit', '--no-fund'], dir)
+    if (await probePort(port)) {
+      previews.set(port, { dir, child: { pid: -1 }, static: staticMode })
+      res.json({ url: `http://localhost:${port}`, port, static: staticMode, reused: true })
+      return
     }
-    let preview = await startPreview(dir)
-    if (!preview.port) {
-      await run('npm', ['install', '--no-audit', '--no-fund'], dir)
-      preview = await startPreview(dir)
+    let preview: { port: number | null; child: ReturnType<typeof spawn> | null }
+    if (staticMode) {
+      preview = await startStatic(dir, port)
+      if (!preview.port || !preview.child) throw new Error('static preview server failed to start')
+    } else {
+      if (!existsSync(join(dir, 'node_modules', 'vite'))) {
+        await run('npm', ['install', '--no-audit', '--no-fund'], dir)
+      }
+      preview = await startPreview(dir, port)
+      if (!preview.port) {
+        await run('npm', ['install', '--no-audit', '--no-fund'], dir)
+        preview = await startPreview(dir, port)
+      }
+      if (!preview.port || !preview.child) {
+        if (preview.child) killTree(preview.child)
+        throw new Error('preview server failed to start, even after reinstalling dependencies')
+      }
     }
-    if (!preview.port || !preview.child) {
-      if (preview.child) killTree(preview.child)
-      throw new Error('preview server failed to start, even after reinstalling dependencies')
-    }
-    previews.set(preview.port, preview.child)
-    res.json({ url: `http://localhost:${preview.port}`, port: preview.port })
+    previews.set(port, { dir, child: preview.child, static: staticMode })
+    res.json({ url: `http://localhost:${port}`, port, static: staticMode, reused: false })
   } catch (e) {
     res.status(500).json({ error: String(e) })
   }
 })
+app.get('/api/previews', (_req, res) => {
+  const items: { port: number; dir: string; url: string; static: boolean }[] = []
+  for (const [port, p] of previews) {
+    if (previewAlive(p.child))
+      items.push({ port, dir: p.dir, url: `http://localhost:${port}`, static: p.static })
+  }
+  res.json(items)
+})
 app.post('/api/preview/stop', (req, res) => {
   const { port } = req.body as { port: number }
-  const child = previews.get(port)
+  const entry = previews.get(port)
+  const child = entry?.child
   if (child) {
-    if (process.platform === 'win32') spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'])
-    else child.kill('SIGTERM')
-    previews.delete(port)
+    if ('exitCode' in child) {
+      if (process.platform === 'win32') spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'])
+      else child.kill('SIGTERM')
+    } else {
+      exec(`for /f "tokens=5" %a in ('netstat -ano ^| findstr :${port} ^| findstr LISTENING') do taskkill /F /PID %a`)
+    }
   }
+  previews.delete(port)
   res.json({ ok: true })
 })
 
@@ -201,7 +266,14 @@ app.get('/api/sessions', (_req, res) => {
       try {
         const meta = JSON.parse(readFileSync(join(SESSIONS_DIR, e.name, 'meta.json'), 'utf8'))
         const recipe = JSON.parse(readFileSync(join(SESSIONS_DIR, e.name, 'recipe.json'), 'utf8'))
-        return { id: e.name, meta, summary: summarize(recipe) }
+        let outDir = meta.outputDir && existsSync(meta.outputDir) ? meta.outputDir : null
+        if (!outDir) {
+          const slugName = slug(recipe.name || '')
+          const candidate = join(OUTPUTS_DIR, slugName)
+          if (existsSync(join(candidate, 'package.json')) || existsSync(join(candidate, 'static.json')))
+            outDir = candidate
+        }
+        return { id: e.name, meta: { ...meta, outputDir: outDir }, summary: summarize(recipe) }
       } catch {
         return null
       }
@@ -314,12 +386,16 @@ app.get('/api/outputs', (_req, res) => {
       const installed = existsSync(join(OUTPUTS_DIR, e.name, 'node_modules'))
       const metaFile = join(OUTPUTS_DIR, e.name, '.clonedzz.json')
       const meta = existsSync(metaFile) ? JSON.parse(readFileSync(metaFile, 'utf8')) : null
+      const staticFile = join(OUTPUTS_DIR, e.name, 'static.json')
+      const staticCfg = existsSync(staticFile) ? JSON.parse(readFileSync(staticFile, 'utf8')) : null
       return {
         name: e.name,
         title: pkg.name,
         installed,
         path: join(OUTPUTS_DIR, e.name),
         sourceUrl: meta?.sourceUrl ?? null,
+        baked: meta?.baked === true || staticCfg?.baked === true,
+        static: !!staticCfg,
       }
     })
   res.json(items)
@@ -337,6 +413,7 @@ if (existsSync(WEB_DIST)) {
 const PORT = Number(process.env.PORT || 4747)
 app.listen(PORT, () => {
   console.log(`clonedzz server on http://localhost:${PORT}`)
+  discoverSurvivingDevServers()
 })
 
 // --- helpers ---
@@ -385,7 +462,7 @@ function runOut(cmd: string, args: string[], cwd: string): Promise<string> {
 
 async function bakeStaticAssets(dir: string): Promise<string[]> {
   const baked: string[] = []
-  const { port, child } = await startStatic(dir)
+  const { port, child } = await startStatic(dir, devPort(dir, 5790, 100))
   if (!port) return baked
   const base = `http://127.0.0.1:${port}`
   let originHost = ''
@@ -496,14 +573,36 @@ function killTree(child: ReturnType<typeof spawn>): void {
   else child.kill('SIGTERM')
 }
 
-function startPreview(dir: string): Promise<{ port: number | null; child: ReturnType<typeof spawn> | null }> {
+async function discoverSurvivingDevServers(): Promise<void> {
+  // After an app restart, detached dev servers from the previous run are still
+  // listening on their deterministic per-dir ports. Re-register them so the UI
+  // shows them as running and can stop/reuse them instead of starting duplicates.
+  let dirs: string[] = []
+  try {
+    dirs = readdirSync(OUTPUTS_DIR, { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .map((e) => join(OUTPUTS_DIR, e.name))
+  } catch {
+    return
+  }
+  const jobs = dirs.map(async (dir) => {
+    const staticMode = existsSync(join(dir, 'static.json'))
+    const port = staticMode ? devPort(dir, 5690, 300) : devPort(dir, 5290, 400)
+    if (previews.has(port)) return
+    if (!(await probePort(port))) return
+    previews.set(port, { dir, child: { pid: -1 }, static: staticMode })
+    console.log(`dev server discovered on :${port} (${dir})`)
+  })
+  await Promise.all(jobs)
+}
+
+function startPreview(dir: string, port: number): Promise<{ port: number | null; child: ReturnType<typeof spawn> | null }> {
   return new Promise((resolve) => {
     const vite = join(dir, 'node_modules', 'vite', 'bin', 'vite.js')
     if (!existsSync(vite)) {
       resolve({ port: null, child: null })
       return
     }
-    const port = 5290 + Math.floor(Math.random() * 400)
     const child = spawn(process.execPath, [vite, '--port', String(port), '--strictPort', '--host', '127.0.0.1'], {
       cwd: dir,
       stdio: 'ignore',
@@ -528,21 +627,23 @@ function startPreview(dir: string): Promise<{ port: number | null; child: Return
   })
 }
 
-function startStatic(dir: string): Promise<{ port: number | null; child: ReturnType<typeof spawn> | null }> {
+function startStatic(dir: string, port: number): Promise<{ port: number | null; child: ReturnType<typeof spawn> | null }> {
   return new Promise((resolve) => {
     const serve = join(dir, 'serve.mjs')
     if (!existsSync(serve)) {
       resolve({ port: null, child: null })
       return
     }
-    const port = 5690 + Math.floor(Math.random() * 300)
     let origin = ''
+    let baked = false
     try {
-      origin = (JSON.parse(readFileSync(join(dir, 'static.json'), 'utf8')).sourceUrl as string) ?? ''
+      const cfg = JSON.parse(readFileSync(join(dir, 'static.json'), 'utf8'))
+      origin = cfg.sourceUrl ?? ''
+      baked = cfg.baked === true
     } catch {
       // leave empty
     }
-    const child = spawn(process.execPath, [serve, dir, String(port), origin], {
+    const child = spawn(process.execPath, [serve, dir, String(port), origin, baked ? '1' : '0'], {
       cwd: dir,
       stdio: 'ignore',
       detached: true,

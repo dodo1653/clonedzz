@@ -223,7 +223,7 @@ ${html}
 `
 }
 
-export function staticServeMjs(origin: string): string {
+export function staticServeMjs(origin: string, localOnly = false): string {
   const host = new URL(origin).host
   return `import { createServer } from 'node:http'
 import { createReadStream, statSync } from 'node:fs'
@@ -232,6 +232,7 @@ import { join, normalize, extname } from 'node:path'
 const ROOT = process.argv[2]
 const PORT = Number(process.argv[3])
 const ORIGIN = process.argv[4]
+const LOCAL_ONLY = process.argv[5] === '1' || ${String(localOnly)}
 
 const types = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
@@ -253,7 +254,12 @@ createServer(async (req, res) => {
       createReadStream(safe).pipe(res)
       return
     } catch {
-      // not on disk -> proxy to the original site
+      // not on disk
+      if (LOCAL_ONLY) {
+        res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' })
+        res.end('not found (self-contained replica — no live proxy to the original site)')
+        return
+      }
     }
     const upstream = new URL(req.url, ORIGIN).href
     const headers = {}
@@ -933,10 +939,12 @@ export function tokenBarHtml(token: TokenSiteData): string {
   const ticker = token.ticker ? escapeHtml(token.ticker.startsWith('$') ? token.ticker : '$' + token.ticker) : ''
   const ca = escapeHtml(token.ca)
   const x = token.x ? escapeHtml(token.x) : ''
+  const img = token.image ? escapeHtml(token.image) : ''
   const buy = `https://pump.fun/coin/${token.ca}`
   return (
     `<style>
 .tokenbar{position:fixed;left:0;right:0;bottom:0;z-index:100000;display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:#fff;color:#000;border-top:4px solid #000;padding:10px 16px;font-family:'Courier New',ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;box-shadow:0 -6px 0 rgba(0,0,0,.18)}
+.tokenbar .tok-img{width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid #000}
 .tokenbar .tok-name{font-size:18px;font-weight:700;letter-spacing:.5px}
 .tokenbar .tok-tick{font-size:15px;font-weight:700;border:2px solid #000;padding:2px 8px}
 .tokenbar .tok-ca{font-family:inherit;font-size:13px;background:#000;color:#fff;border:none;padding:6px 10px;cursor:pointer}
@@ -947,6 +955,7 @@ export function tokenBarHtml(token: TokenSiteData): string {
 .tokenbar .tok-buy:hover{background:#e02424}
 </style>
 <div class="tokenbar">` +
+      (img ? `<img class="tok-img" src="${img}" alt="${name}" />` : '') +
       (name ? `<span class="tok-name">${name}</span>` : '') +
       (ticker ? `<span class="tok-tick">${ticker}</span>` : '') +
       `<button class="tok-ca" onclick="tokenbarCopy()">${ca}</button>` +

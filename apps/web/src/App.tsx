@@ -16,6 +16,7 @@ import { VerifyCard } from './components/VerifyCard'
 import { Hero } from './components/Hero'
 import type {
   PreviewInfo,
+  PreviewStatus,
   PushResult,
   Recipe,
   SessionItem,
@@ -61,10 +62,25 @@ export default function App() {
   const [tokens, setTokens] = useState<TokenPreset[]>([])
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [update, setUpdate] = useState<UpdateStatus | null>(null)
+  const [devMap, setDevMap] = useState<Record<string, PreviewStatus>>({})
+  const [sidebarOpen, setSidebarOpen] = useState(true)
 
   useEffect(() => {
     if (!window.desktop?.onUpdateStatus) return
     return window.desktop.onUpdateStatus(setUpdate)
+  }, [])
+
+  useEffect(() => {
+    api
+      .previews()
+      .then((list) => {
+        const m: Record<string, PreviewStatus> = {}
+        for (const p of list) {
+          if (p && p.dir) m[p.dir] = p
+        }
+        setDevMap(m)
+      })
+      .catch(() => {})
   }, [])
 
   // Recent cloned websites for the hero chips — most recent first, one per host.
@@ -289,6 +305,37 @@ export default function App() {
     setPreview(null)
   }
 
+  const devRun = async (dir: string) => {
+    if (!dir) {
+      pushToast('error', 'no output dir yet — generate this session first')
+      return
+    }
+    try {
+      const p = await api.preview(dir)
+      setDevMap((m) => ({ ...m, [dir]: { port: p.port, url: p.url, static: !!p.static, dir } }))
+      window.open(p.url, '_blank')
+      pushToast('ok', `dev server up: ${p.url}`)
+    } catch (e) {
+      pushToast('error', String(e))
+    }
+  }
+
+  const devStop = async (dir: string) => {
+    const p = devMap[dir]
+    if (!p) return
+    try {
+      await api.previewStop(p.port)
+      setDevMap((m) => {
+        const next = { ...m }
+        delete next[dir]
+        return next
+      })
+      pushToast('ok', 'dev server stopped')
+    } catch (e) {
+      pushToast('error', String(e))
+    }
+  }
+
   const runVerify = async (dir: string) => {
     setPhase('verifying')
     try {
@@ -401,7 +448,7 @@ export default function App() {
   const busy = phase === 'analyzing' || phase === 'generating' || phase === 'verifying'
 
   return (
-    <div className="app has-titlebar">
+    <div className={`app has-titlebar ${sidebarOpen ? '' : 'sidebar-collapsed'}`}>
       <TitleBar />
       {!reduceMotion && (
         <AcidSquares
@@ -451,6 +498,11 @@ export default function App() {
         theme={theme}
         onToggleTheme={() => setTheme(nextTheme)}
         onHome={goHome}
+        devMap={devMap}
+        onRunDev={devRun}
+        onStopDev={devStop}
+        open={sidebarOpen}
+        onToggleOpen={() => setSidebarOpen(!sidebarOpen)}
       />
 
       <main className="main">

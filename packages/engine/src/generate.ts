@@ -74,8 +74,8 @@ export async function generateProject(opts: GenerateOptions): Promise<GenerateRe
       warnings.push('token factory: analysis found no contract address — added a fixed bottom token bar to the replica')
     }
     await write('index.html', html)
-    await write('serve.mjs', staticServeMjs(origin))
-    await write('static.json', JSON.stringify({ sourceUrl: recipe.sourceUrl, generatedAt: new Date().toISOString() }, null, 2))
+    await write('serve.mjs', staticServeMjs(origin, !!opts.bakeAssets))
+    await write('static.json', JSON.stringify({ sourceUrl: recipe.sourceUrl, baked: !!opts.bakeAssets, generatedAt: new Date().toISOString() }, null, 2))
     if (opts.bakeAssets || token) {
       // Download every referenced same-origin asset (css/js/images/fonts/subpages) onto disk
       // so the replica is self-contained. With bakeAssets we also rewrite absolute origin URLs
@@ -94,7 +94,7 @@ export async function generateProject(opts: GenerateOptions): Promise<GenerateRe
       if (token) {
         const patched = await patchTokenFiles(dir, baked, recipe, token)
         warnings.push(
-          `token factory: mirrored the live site and swapped in your token — ${patched} file(s) patched for CA/ticker/X${baked.length ? ` (${baked.length} assets baked locally)` : ''}`,
+          `token factory: mirrored the live site and swapped in your token — ${patched} file(s) patched for CA/ticker/X/image${baked.length ? ` (${baked.length} assets baked locally)` : ''}`,
         )
       }
     }
@@ -806,19 +806,33 @@ function resolveRef(ref: string, basePath: string, originHost: string): string |
 }
 
 async function patchTokenFiles(dir: string, baked: string[], recipe: Recipe, token: TokenSiteData): Promise<number> {
-  const textFiles = baked.filter((p) => /\.(html|js|mjs|css|json|txt)$/i.test(p))
+  const textFiles = baked.filter((p) => /\.(html|js|mjs|css|json|txt|svg)$/i.test(p))
   const all = await joinTextFiles(dir, textFiles)
   const htmlCorpus = extractHtmlCorpus(all)
   const quotedCorpus = extractQuotedCorpus(all)
   const scanCorpus = quotedCorpus + '\n' + htmlCorpus
 
   const oldCA = recipe.contractAddresses[0] || detectCA(all) || null
-  const oldX =
-    (recipe.socials.find((s) => /x\.com|twitter\.com/i.test(s.href))?.href) ||
-    (all.match(/https?:\/\/(?:x\.com|twitter\.com)\/[A-Za-z0-9_/]+/) || [])[0] ||
-    null
+  const oldX = detectXUrl(all, recipe)
   const oldTicker = detectTicker(scanCorpus, recipe)
   const oldName = detectName(scanCorpus, recipe)
+
+  const imageUrl = token.image || null
+  let downloadedImagePath: string | null = null
+  if (imageUrl) {
+    try {
+      const r = await fetch(imageUrl, { signal: AbortSignal.timeout(30000) })
+      if (r.ok) {
+        const buf = Buffer.from(await r.arrayBuffer())
+        const ext = (imageUrl.match(/\.(png|jpe?g|gif|webp|svg|avif)(\?|$)/i)?.[1] ?? 'png').toLowerCase()
+        const imagePath = join(dir, `token-image.${ext}`)
+        await writeFile(imagePath, buf)
+        downloadedImagePath = `/token-image.${ext}`
+      }
+    } catch {
+      // ignore download failures
+    }
+  }
 
   let changed = 0
   for (const p of textFiles) {
@@ -830,17 +844,78 @@ async function patchTokenFiles(dir: string, baked: string[], recipe: Recipe, tok
       continue
     }
     const isHtml = /\.html$/i.test(p)
+    const isSvg = /\.svg$/i.test(p)
     let out = text
     if (oldCA && token.ca) out = out.split(oldCA).join(token.ca)
     if (oldX && token.x) out = out.split(oldX).join(token.x)
-    if (oldTicker && token.ticker) out = replaceTicker(out, oldTicker, token.ticker, isHtml)
-    if (oldName && token.name) out = replaceNameSafe(out, oldName, token.name, isHtml)
+    if (oldTicker && token.ticker) out = replaceTicker(out, oldTicker, token.ticker, isHtml || isSvg)
+    if (oldName && token.name) out = replaceNameSafe(out, oldName, token.name, isHtml || isSvg)
+    if (isHtml && downloadedImagePath) {
+      out = replaceImages(out, downloadedImagePath)
+    }
     if (out !== text) {
       await writeFile(path, out)
       changed++
     }
   }
   return changed
+}
+
+function detectXUrl(all: string, recipe: Recipe): string | null {
+  const fromRecipe = recipe.socials.find((s) => /x\.com|twitter\.com/i.test(s.href))?.href
+  if (fromRecipe) return fromRecipe
+
+  const fullUrl = all.match(/https?:\/\/(?:x\.com|twitter\.com)\/[A-Za-z0-9_/]+/)
+  if (fullUrl) return fullUrl[0]
+
+  const partialUrl = all.match(/(?:x\.com|twitter\.com)\/([A-Za-z0-9_]{1,15})(?:\s|["'/]|$)/)
+  if (partialUrl) return `https://x.com/${partialUrl[1]}`
+
+  const handle = all.match(/@([A-Za-z0-9_]{1,15})\s*(?:\(|\)|$|\s*[·•\-—])/m)
+  if (handle) {
+    const h = handle[1]
+    const cryptoWords = /pump|token|coin|ca|solana|ethereum|dex|swap|nft|web3|defi/i
+    const nearby = all.slice(Math.max(0, (handle.index ?? 0) - 200), (handle.index ?? 0) + 200)
+    if (cryptoWords.test(nearby)) {
+      return `https://x.com/${h}`
+    }
+  }
+
+  return null
+}
+
+function replaceImages(html: string, localPath: string): string {
+  let out = html
+
+  out = out.replace(
+    /(<link\b[^>]*\brel\s*=\s*["'](?:shortcut\s+)?icon["'][^>]*\bhref\s*=\s*["'])([^"']+)(["'][^>]*>)/gi,
+    (_m: string, pre: string, _href: string, post: string) => pre + localPath + post,
+  )
+
+  out = out.replace(
+    /(<meta\b[^>]*\bproperty\s*=\s*["']og:image["'][^>]*\bcontent\s*=\s*["'])([^"']+)(["'][^>]*>)/gi,
+    (_m: string, pre: string, _href: string, post: string) => pre + localPath + post,
+  )
+  out = out.replace(
+    /(<meta\b[^>]*\bcontent\s*=\s*["'])([^"']+)(["'][^>]*\bproperty\s*=\s*["']og:image["'][^>]*>)/gi,
+    (_m: string, pre: string, _href: string, post: string) => pre + localPath + post,
+  )
+
+  out = out.replace(
+    /(<meta\b[^>]*\bname\s*=\s*["']twitter:image["'][^>]*\bcontent\s*=\s*["'])([^"']+)(["'][^>]*>)/gi,
+    (_m: string, pre: string, _href: string, post: string) => pre + localPath + post,
+  )
+  out = out.replace(
+    /(<meta\b[^>]*\bcontent\s*=\s*["'])([^"']+)(["'][^>]*\bname\s*=\s*["']twitter:image["'][^>]*>)/gi,
+    (_m: string, pre: string, _href: string, post: string) => pre + localPath + post,
+  )
+
+  out = out.replace(
+    /(<meta\b[^>]*\bname\s*=\s*["']msapplication-TileImage["'][^>]*\bcontent\s*=\s*["'])([^"']+)(["'][^>]*>)/gi,
+    (_m: string, pre: string, _href: string, post: string) => pre + localPath + post,
+  )
+
+  return out
 }
 
 function extractQuotedCorpus(all: string): string {
@@ -852,30 +927,113 @@ function extractQuotedCorpus(all: string): string {
 }
 
 function detectCA(all: string): string | null {
-  const evm = all.match(/\b0x[a-fA-F0-9]{40}\b/)
-  if (evm) return evm[0]
-  const re = /["']([1-9A-HJ-NP-Za-km-z]{32,44})["']/g
-  const candidates: { value: string; before: string }[] = []
-  let m: RegExpExecArray | null
-  while ((m = re.exec(all))) {
-    const value = m[1]
-    if (!/[A-Z]/.test(value)) continue
-    candidates.push({ value, before: all.slice(Math.max(0, m.index - 90), m.index) })
+  const candidates = new Map<string, number>()
+
+  const add = (value: string, score: number) => {
+    if (candidates.has(value)) {
+      candidates.set(value, Math.max(candidates.get(value)!, score))
+    } else {
+      candidates.set(value, score)
+    }
   }
-  if (!candidates.length) return null
-  const byContext = candidates.find(
-    (c) => /pump$/.test(c.value) || /(?:ca|contract|address|mint|token)\s*[:=]?\s*$/i.test(c.before),
-  )
-  if (byContext) return byContext.value
-  candidates.sort((a, b) => b.value.length - a.value.length)
-  return candidates[0].value
+
+  const evmRe = /\b0x[a-fA-F0-9]{40}\b/g
+  let m: RegExpExecArray | null
+  while ((m = evmRe.exec(all))) {
+    add(m[0], 5)
+  }
+
+  const pumpUrlRe = /pump\.fun\/(?:coin\/|token\/)?([1-9A-HJ-NP-Za-km-z]{32,44})/gi
+  while ((m = pumpUrlRe.exec(all))) {
+    add(m[1], 30)
+  }
+
+  const quotedRe = /["'`]([1-9A-HJ-NP-Za-km-z]{32,44})["'`]/g
+  while ((m = quotedRe.exec(all))) {
+    const v = m[1]
+    if (!/[A-Z]/.test(v)) continue
+    const before = all.slice(Math.max(0, m.index - 120), m.index)
+    let score = 8
+    if (/pump$/.test(v)) score += 10
+    if (/(?:ca|contract|address|mint|token|key|secret|private)\s*[:=]?\s*$/i.test(before)) score += 12
+    if (/(?:pub|public)\s*[:=]/i.test(before)) score += 6
+    add(v, score)
+  }
+
+  const unquotedRe = /(?:^|[\s,;=\(])([1-9A-HJ-NP-Za-km-z]{32,44})(?:[\s,;)\]}]|$)/gm
+  while ((m = unquotedRe.exec(all))) {
+    const v = m[1]
+    if (!/[A-Z]/.test(v)) continue
+    const before = all.slice(Math.max(0, m.index - 120), m.index)
+    let score = 4
+    if (/pump$/.test(v)) score += 10
+    if (/(?:ca|contract|address|mint|token|key)\s*[:=]?\s*$/i.test(before)) score += 10
+    add(v, score)
+  }
+
+  const templateRe = /`([1-9A-HJ-NP-Za-km-z]{32,44})`/g
+  while ((m = templateRe.exec(all))) {
+    add(m[1], 7)
+  }
+
+  const assignRe = /(?:ca|contract|address|mint|token|key|wallet)\s*[:=]\s*["']([1-9A-HJ-NP-Za-km-z]{32,44})["']/gi
+  while ((m = assignRe.exec(all))) {
+    add(m[1], 15)
+  }
+
+  const urlPathRe = /\/(?:coin|token|address|ca)\/([1-9A-HJ-NP-Za-km-z]{32,44})/gi
+  while ((m = urlPathRe.exec(all))) {
+    add(m[1], 20)
+  }
+
+  if (candidates.size === 0) return null
+
+  let best: string | null = null
+  let bestScore = 0
+  for (const [value, score] of candidates) {
+    if (score > bestScore) {
+      best = value
+      bestScore = score
+    }
+  }
+  return best
 }
 
 function detectName(corpus: string, recipe: Recipe): string | null {
   const name = (recipe.name || '').trim()
   if (!name) return null
+
   const re = new RegExp(`(?:^|[^A-Za-z0-9_])${escapeRegExp(name)}(?:[^A-Za-z0-9_]|$)`, 'i')
-  return re.test(corpus) ? name : null
+  if (re.test(corpus)) return name
+
+  const noSpace = name.replace(/\s+/g, '')
+  if (noSpace !== name) {
+    const reNoSpace = new RegExp(`(?:^|[^A-Za-z0-9_])${escapeRegExp(noSpace)}(?:[^A-Za-z0-9_]|$)`, 'i')
+    if (reNoSpace.test(corpus)) return name
+  }
+
+  const kebab = name.toLowerCase().replace(/\s+/g, '-')
+  if (kebab !== name.toLowerCase()) {
+    const reKebab = new RegExp(`(?:^|[^A-Za-z0-9])${escapeRegExp(kebab)}(?:[^A-Za-z0-9]|$)`, 'i')
+    if (reKebab.test(corpus)) return name
+  }
+
+  const camel = name.replace(/\s+(.)/g, (_, c: string) => c.toUpperCase()).replace(/\s+/g, '')
+  if (camel !== name && camel !== noSpace) {
+    const reCamel = new RegExp(`(?:^|[^A-Za-z0-9_])${escapeRegExp(camel)}(?:[^A-Za-z0-9_]|$)`, 'i')
+    if (reCamel.test(corpus)) return name
+  }
+
+  const words = name.split(/\s+/).filter((w) => w.length > 2)
+  if (words.length >= 2) {
+    const allPresent = words.every((w) => {
+      const re = new RegExp(`(?:^|[^A-Za-z0-9_])${escapeRegExp(w)}(?:[^A-Za-z0-9_]|$)`, 'i')
+      return re.test(corpus)
+    })
+    if (allPresent) return name
+  }
+
+  return name
 }
 
 async function joinTextFiles(dir: string, textFiles: string[]): Promise<string> {
@@ -912,26 +1070,72 @@ function detectTicker(corpus: string, recipe: Recipe): string | null {
     'function', 'var', 'let', 'const', 'if', 'else', 'for', 'while', 'do', 'switch', 'case', 'break',
     'continue', 'default', 'try', 'catch', 'finally', 'throw', 'class', 'extends', 'super', 'yield',
     'await', 'async', 'import', 'export', 'from', 'as', 'delete', 'void', 'debugger', 'static', 'get', 'set',
+    'token', 'coin', 'sol', 'eth', 'btc', 'usdt', 'usdc',
   ])
-  const counts = new Map<string, number>()
-  const re = /\$([A-Za-z][A-Za-z0-9_]{1,12})/g
+  const nameLower = recipe.name.toLowerCase()
+
+  const dolarCounts = new Map<string, number>()
+  const dolarOriginals = new Map<string, string>()
+  const dolarRe = /\$([A-Za-z][A-Za-z0-9_]{1,12})/g
   let m: RegExpExecArray | null
-  while ((m = re.exec(corpus))) {
+  while ((m = dolarRe.exec(corpus))) {
     const t = m[1].toLowerCase()
     if (reserved.has(t)) continue
-    counts.set(t, (counts.get(t) || 0) + 1)
+    dolarCounts.set(t, (dolarCounts.get(t) || 0) + 1)
+    if (!dolarOriginals.has(t)) dolarOriginals.set(t, m[1])
   }
-  const nameLower = recipe.name.toLowerCase()
+
+  const titleTag = (corpus.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1] ?? '').toLowerCase()
+  const ogSiteName = (corpus.match(/<meta\s+property="og:site_name"\s+content="([^"]+)"/i)?.[1] ?? '').toLowerCase()
+  const ogTitle = (corpus.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i)?.[1] ?? '').toLowerCase()
+  const h1Text = (corpus.match(/<h1[^>]*>([^<]+)<\/h1>/i)?.[1] ?? '').toLowerCase()
+
+  const capsCounts = new Map<string, number>()
+  const capsRe = /\b([A-Z][A-Z]{1,10})\b/g
+  while ((m = capsRe.exec(corpus))) {
+    const t = m[1]
+    if (reserved.has(t.toLowerCase())) continue
+    if (t.length < 2 || t.length > 10) continue
+    capsCounts.set(t, (capsCounts.get(t) || 0) + 1)
+  }
+
   let best: string | null = null
-  let bestScore = 0
-  for (const [t, c] of counts) {
-    const score = c + (nameLower === t ? 10 : nameLower.includes(t) ? 5 : 0)
+  let bestScore = -1
+  let bestOriginal: string | null = null
+
+  for (const [t, count] of dolarCounts) {
+    let score = count * 2
+    if (nameLower === t) score += 20
+    else if (nameLower.includes(t)) score += 10
+    if (titleTag.includes(t)) score += 8
+    if (ogSiteName.includes(t)) score += 12
+    if (ogTitle.includes(t)) score += 8
+    if (h1Text.includes(t)) score += 6
     if (score > bestScore) {
       best = t
       bestScore = score
+      bestOriginal = dolarOriginals.get(t) ?? t
     }
   }
-  if (best) return best
+
+  for (const [t, count] of capsCounts) {
+    const tl = t.toLowerCase()
+    let score = count
+    if (nameLower === tl) score += 20
+    else if (nameLower.includes(tl)) score += 10
+    if (titleTag.includes(tl)) score += 10
+    if (ogSiteName.includes(tl)) score += 14
+    if (ogTitle.includes(tl)) score += 10
+    if (h1Text.includes(tl)) score += 8
+    if (score > bestScore) {
+      best = tl
+      bestScore = score
+      bestOriginal = t
+    }
+  }
+
+  if (best) return bestOriginal ?? best
+
   const caTicker = recipe.contractAddresses[0] ? nameLower.split(/\s+/)[0].toLowerCase() : null
   if (caTicker && caTicker.length >= 2 && caTicker.length <= 14 && new RegExp(`\\b\\$?${escapeRegExp(caTicker)}\\b`, 'i').test(corpus)) {
     return caTicker
@@ -955,9 +1159,8 @@ function replaceTicker(text: string, oldTicker: string, newTicker: string, isHtm
   const ot = oldTicker.toLowerCase()
   const nt = newTicker
   let out = text.replace(new RegExp(`\\$${escapeRegExp(ot)}(?![A-Za-z0-9_])`, 'gi'), `$${nt}`)
-  out = out.replace(new RegExp(`\\$${escapeRegExp(ot).toUpperCase()}(?![A-Za-z0-9_])`, 'gi'), () => `$${nt.toUpperCase()}`)
   if (!isHtml) return out
-  const safeAttrs = ['content', 'title', 'alt', 'aria-label', 'placeholder', 'data-title']
+  const safeAttrs = ['content', 'title', 'alt', 'aria-label', 'placeholder', 'data-title', 'data-value', 'data-text', 'data-name', 'data-token', 'value']
   const attrRe = new RegExp(`(\\b(?:${safeAttrs.join('|')})\\s*=\\s*["'])([^"']*)(["'])`, 'gi')
   out = out.replace(attrRe, (_m, pre: string, val: string, post: string) => pre + replaceWord(val, ot, nt) + post)
   const textRe = new RegExp(`(>)([^<]*\\b${escapeRegExp(ot)}\\b[^<]*)(<)`, 'gi')
@@ -969,7 +1172,7 @@ function replaceNameSafe(text: string, oldName: string, newName: string, isHtml:
   const on = oldName
   const nn = newName
   if (isHtml) {
-    const safeAttrs = ['content', 'title', 'alt', 'aria-label', 'placeholder', 'data-title']
+    const safeAttrs = ['content', 'title', 'alt', 'aria-label', 'placeholder', 'data-title', 'data-value', 'data-text', 'data-name', 'data-token', 'value']
     const attrRe = new RegExp(`(\\b(?:${safeAttrs.join('|')})\\s*=\\s*["'])([^"']*)(["'])`, 'gi')
     let out = text.replace(attrRe, (_m, pre: string, val: string, post: string) => pre + replaceWord(val, on, nn) + post)
     const textRe = new RegExp(`(>)([^<]*\\b${escapeRegExp(on)}\\b[^<]*)(<)`, 'gi')
@@ -977,7 +1180,10 @@ function replaceNameSafe(text: string, oldName: string, newName: string, isHtml:
     return out
   }
   const quotedRe = new RegExp(`([^=.(\\[{?]|^)(["'])${escapeRegExp(on)}(["'])`, 'gi')
-  return text.replace(quotedRe, (_m, pre: string, q: string, q2: string) => pre + q + nn + q2)
+  let out = text.replace(quotedRe, (_m, pre: string, q: string, q2: string) => pre + q + nn + q2)
+  const templateRe = new RegExp(`\`([^\\\`]*?)${escapeRegExp(on)}([^\\\`]*?)\``, 'gi')
+  out = out.replace(templateRe, (_m, before: string, after: string) => `${before}${nn}${after}`)
+  return out
 }
 
 // --- self-contained baking ("download everything locally") ---

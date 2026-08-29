@@ -63,6 +63,11 @@ body::after { opacity: .32; background-image: linear-gradient(rgba(255,255,255,.
 .item .nm { overflow: hidden; color: #deded8; font-size: 12px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .item .sub { overflow: hidden; color: var(--faint); font-family: var(--mono); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .item-actions { display: none; gap: 2px; flex: none; }
+.icon-btn.dev { color: #4ade80; }
+.icon-btn.dev.on { color: #f87171; }
+.icon-btn.dev:hover { background: #4ade8022; }
+.icon-btn.dev.on:hover { background: #f8717122; }
+.dev-dot { color: #4ade80; font-weight: 600; }
 .item:hover .item-actions, .item.active .item-actions { display: flex; }
 .item.editing { border-color: rgba(167,204,255,.55); background: var(--surface-raised); cursor: default; }
 .empty { padding: 8px 10px 11px; color: var(--faint); font-size: 11px; }
@@ -338,6 +343,87 @@ html.light .theme-toggle { color: var(--accent); }.light .brand-orbit { border-c
 html.lenis, html.lenis body { height: auto; }
 .lenis.lenis-smooth { scroll-behavior: auto !important; }
 .sidebar { position: sticky; top: 48px; }
+
+/* Sidebar toggle button */
+.sidebar-toggle {
+  position: fixed;
+  left: 292px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 130;
+  width: 20px;
+  height: 48px;
+  border: 1px solid var(--line-soft);
+  border-left: 0;
+  border-radius: 0 8px 8px 0;
+  background: rgba(13,15,19,.84);
+  backdrop-filter: blur(24px);
+  color: var(--muted);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: left 0.3s cubic-bezier(.16,1,.3,1), background 0.2s ease, color 0.2s ease;
+  padding: 0;
+  font-style: normal;
+}
+.sidebar-toggle:hover {
+  background: rgba(183,228,199,.12);
+  color: var(--accent);
+}
+.sidebar-toggle.open {
+  left: 292px;
+}
+.sidebar-toggle:not(.open) {
+  left: 0;
+}
+.sidebar.collapsed {
+  width: 0;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+}
+.sidebar-collapsed .main {
+  margin-left: 0;
+  width: 100%;
+  max-width: 100%;
+  padding-left: 48px;
+  padding-right: 48px;
+}
+.sidebar-collapsed .main > .card,
+.sidebar-collapsed .main > .loading {
+  max-width: 960px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.sidebar-collapsed .hero {
+  max-width: 100%;
+}
+.sidebar-collapsed .hero-inner {
+  max-width: 960px;
+}
+.sidebar-collapsed .workflow-stack {
+  max-width: 1080px;
+  margin-left: auto;
+  margin-right: auto;
+}
+html.light .sidebar-toggle {
+  background: rgba(202,195,184,.9);
+  border-color: rgba(64,56,47,.09);
+}
+html.light .sidebar-toggle:hover {
+  background: rgba(166,111,131,.12);
+}
+html.dim .sidebar-toggle {
+  background: rgba(150,142,130,.92);
+  border-color: rgba(58,48,38,.12);
+}
+html.dim .sidebar-toggle:hover {
+  background: rgba(109,130,104,.12);
+}
 
 /* AcidSquares background layer (decorative, behind all content) */
 .acid-bg { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
