@@ -203,15 +203,11 @@ export function Sidebar({
   onToggleOpen: () => void
 }) {
   return (
-    <>
-      <aside className={`sidebar ${open ? '' : 'collapsed'}`} data-lenis-prevent>
+    <aside className={`sidebar ${open ? '' : 'collapsed'}`} data-lenis-prevent>
       <div className="brand">
         <div className="brand-topline">
-          <div className="brand-home" onClick={onHome} role="button" tabIndex={0} title="Return home" onKeyDown={(e) => e.key === 'Enter' && onHome()}>
-            <div className="brand-line">
-              clone<span>dzz</span>
-            </div>
-            <span className="brand-orbit" aria-hidden="true" />
+          <div className="brand-line" onClick={onHome} role="button" tabIndex={0} title="Return home" onKeyDown={(e) => e.key === 'Enter' && onHome()}>
+            clone<span>dzz</span>
           </div>
           <button
             className="sidebar-close"
@@ -224,7 +220,6 @@ export function Sidebar({
             </svg>
           </button>
         </div>
-        <div className="brand-sub">replicate · runnable Vite+React</div>
       </div>
 
       <SideSection
@@ -290,6 +285,5 @@ export function Sidebar({
         ))}
       </SideSection>
       </aside>
-    </>
   )
 }
