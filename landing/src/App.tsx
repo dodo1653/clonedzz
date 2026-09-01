@@ -90,7 +90,7 @@ export default function App() {
         <div className="hero-content">
           <div className="hero-badge reveal">
             <span className="hero-badge-dot" />
-            visual site replication engine
+            built for <span className="hero-badge-pf">pump.fun</span>
           </div>
 
           <h1 className="reveal reveal-delay-1">
@@ -136,6 +136,17 @@ export default function App() {
             <div className="proof-num">0</div>
             <div className="proof-label">Dependencies required</div>
           </div>
+        </div>
+      </div>
+
+      {/* ═══ PUMP.FUN RIBBON ═══ */}
+      <div className="pump-ribbon">
+        <div className="pump-ribbon-inner">
+          <span className="pump-ribbon-label">Token-site engine</span>
+          <span className="pump-ribbon-sep">·</span>
+          <span className="pump-ribbon-brand">pump.fun</span>
+          <span className="pump-ribbon-sep">·</span>
+          <span className="pump-ribbon-label">Solana native</span>
         </div>
       </div>
 

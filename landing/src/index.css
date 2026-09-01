@@ -241,6 +241,61 @@ section { padding: clamp(80px, 10vw, 140px) 0; }
   background: var(--accent);
   box-shadow: 0 0 12px var(--accent);
 }
+.hero-badge-pf {
+  font-family: var(--serif);
+  font-size: 12px;
+  font-weight: 500;
+  font-style: italic;
+  letter-spacing: .02em;
+  text-transform: none;
+  color: var(--text);
+  opacity: .9;
+}
+
+/* ═══════════════════════════════════════════
+   PUMP.FUN RIBBON
+   ═══════════════════════════════════════════ */
+.pump-ribbon {
+  position: relative;
+  z-index: 1;
+  padding: 0 var(--gutter);
+}
+.pump-ribbon-inner {
+  max-width: var(--max-w);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 20px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.pump-ribbon-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.pump-ribbon-sep {
+  color: var(--text-tertiary);
+  opacity: .4;
+  font-size: 8px;
+}
+.pump-ribbon-brand {
+  font-family: var(--serif);
+  font-size: 18px;
+  font-weight: 500;
+  font-style: italic;
+  letter-spacing: -.02em;
+  color: var(--accent);
+  text-shadow: 0 0 24px rgba(183,228,199,.15);
+  transition: text-shadow .4s ease;
+}
+.pump-ribbon-brand:hover {
+  text-shadow: 0 0 32px rgba(183,228,199,.25);
+}
 .hero h1 {
   font-family: var(--serif);
   font-weight: 500;
