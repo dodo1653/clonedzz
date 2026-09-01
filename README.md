@@ -1,4 +1,4 @@
-# clonedzz
+ # clonedzz
 
 Replicate a website's visual style by URL and get a **runnable Vite + React replica** in one command — automatically. Built as a two-stage pipeline: a Playwright-based analysis engine that extracts a structured *recipe* from a live site, and a generator that scaffolds a complete frontend project from that recipe. A web dashboard wraps it all with a token-site factory, a theme library, and a fidelity verifier.
 
@@ -53,3 +53,4 @@ browser install needed.
 - Playwright browsers are shared with the system cache in dev; if the first run can't find a browser, run `npx playwright install chromium`. (The packaged app bundles its own.)
 - Vite binds `::1` on Windows by default; verify/preview always use `--host 127.0.0.1`.
 - Generated replicas are standalone projects — `cd outputs/<name> && npm run dev`.
+<img width="1535" height="813" alt="image" src="https://github.com/user-attachments/assets/cdaa9d83-f1b2-4184-a67c-c8874e09298f" />
