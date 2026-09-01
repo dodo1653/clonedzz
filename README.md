@@ -9,8 +9,6 @@ npm install
 npm run dev        # server on :4747, web dashboard on :5174
 ```
 
-solana wallet for donations: ADERui2RrKM8fiiW5WqaGDoLnNknNFcnyFYwRB7TDKRo
-
 The dashboard lets you:
 - **Clone by URL** — analyze any site, review the extracted recipe, generate the replica, open a live preview, and run a Playwright fidelity comparison (source vs replica scorecard).
 - **Token-site factory** — tick a checkbox, inject a Solana contract address + token content, and generate the replica as a token landing page (CA copy button, pump.fun BUY link, token blurb).
@@ -54,3 +52,6 @@ browser install needed.
 - Vite binds `::1` on Windows by default; verify/preview always use `--host 127.0.0.1`.
 - Generated replicas are standalone projects — `cd outputs/<name> && npm run dev`.
 <img width="1535" height="813" alt="image" src="https://github.com/user-attachments/assets/cdaa9d83-f1b2-4184-a67c-c8874e09298f" />
+
+
+solana wallet for donations: ADERui2RrKM8fiiW5WqaGDoLnNknNFcnyFYwRB7TDKRo
