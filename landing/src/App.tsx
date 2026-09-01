@@ -3,6 +3,7 @@ import Beams from './components/Beams'
 import { useLenis } from './lib/useLenis'
 
 const GITHUB_URL = 'https://github.com/dodo1653/clonedzz'
+const DOWNLOAD_URL = 'https://github.com/dodo1653/clonedzz/releases/tag/v1.1.1'
 
 export default function App() {
   useLenis()
@@ -61,7 +62,7 @@ export default function App() {
             <a href="#features" className="nav-link">Features</a>
             <a href="#how" className="nav-link">How it works</a>
             <a href="#fidelity" className="nav-link">Fidelity</a>
-            <a href="#get-started" className="nav-cta">Get started</a>
+            <a href={DOWNLOAD_URL} target="_blank" rel="noopener noreferrer" className="nav-cta">Download v1.1.1</a>
           </div>
         </div>
       </nav>
@@ -101,9 +102,9 @@ export default function App() {
           </p>
 
           <div className="hero-actions reveal reveal-delay-3">
-            <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="btn-primary">
-              Start cloning
-              <span aria-hidden="true">→</span>
+            <a href={DOWNLOAD_URL} target="_blank" rel="noopener noreferrer" className="btn-primary">
+              Download for Windows
+              <span aria-hidden="true">↓</span>
             </a>
             <a href="#how" className="btn-secondary">
               See how it works
@@ -353,12 +354,13 @@ export default function App() {
               sites in seconds.
             </p>
             <div className="hero-actions" style={{ marginTop: 0 }}>
-              <a href={GITHUB_URL} className="btn-primary" target="_blank" rel="noopener noreferrer">
+              <a href={DOWNLOAD_URL} className="btn-primary" target="_blank" rel="noopener noreferrer">
+                Download v1.1.1
+                <span aria-hidden="true">↓</span>
+              </a>
+              <a href={GITHUB_URL} className="btn-secondary" target="_blank" rel="noopener noreferrer">
                 View on GitHub
                 <span aria-hidden="true">↗</span>
-              </a>
-              <a href="#how" className="btn-secondary">
-                Read the docs
               </a>
             </div>
           </div>
