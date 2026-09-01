@@ -2,12 +2,14 @@
 
 Replicate a website's visual style by URL and get a **runnable Vite + React replica** in one command — automatically. Built as a two-stage pipeline: a Playwright-based analysis engine that extracts a structured *recipe* from a live site, and a generator that scaffolds a complete frontend project from that recipe. A web dashboard wraps it all with a token-site factory, a theme library, and a fidelity verifier.
 
-solana wallet for donations: ADERui2RrKM8fiiW5WqaGDoLnNknNFcnyFYwRB7TDKRo
+
 
 ```
 npm install
 npm run dev        # server on :4747, web dashboard on :5174
 ```
+
+solana wallet for donations: ADERui2RrKM8fiiW5WqaGDoLnNknNFcnyFYwRB7TDKRo
 
 The dashboard lets you:
 - **Clone by URL** — analyze any site, review the extracted recipe, generate the replica, open a live preview, and run a Playwright fidelity comparison (source vs replica scorecard).
